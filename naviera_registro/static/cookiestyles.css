@@ -1,0 +1,49 @@
+/* Estilos para la ventana emergente de cookies */
+.modal {
+    display: none; /* inicialmente oculta */
+    position: fixed;
+    top: 0; /* posiciona en la parte superior */
+    left: 0;
+    width: 100%;
+    height: 100vh; /* cubre toda la altura del viewport */
+    background-color: rgba(0, 0, 0, 0.8); /* fondo semi-transparente */
+    color: #272B60;
+    padding: 20px;
+    z-index: 1000; /* posiciona sobre otros elementos */
+    display: flex; /* centra el contenido verticalmente */
+    justify-content: center; /* centra el contenido horizontalmente */
+    align-items: center; /* centra el contenido verticalmente */
+  }
+  
+  .modal-content {
+    background-color: white; /* fondo blanco para el contenido */
+    padding: 20px;
+    border-radius: 5px; /* bordes redondeados */
+    max-width: 600px; /* ancho máximo */
+    text-align: justify;
+  }
+  
+  .modal-content h2 {
+    margin-top: 0;
+    color: #272B60; /* color del título con azul secundario */
+    text-align: center;
+  }
+  
+  .modal-content p {
+    margin-bottom: 15px; /* espacio inferior del párrafo */
+  }
+  
+  .modal-content button {
+    margin: 10px;
+    padding: 10px 20px;
+    border: none;
+    background-color: #1880C0; /* color de fondo del botón con azul primario */
+    color: white;
+    cursor: pointer;
+    border-radius: 5px; /* bordes redondeados */
+  }
+  
+  .modal-content button:hover {
+    background-color: #272B60; /* color de fondo al pasar el mouse */
+  }
+  

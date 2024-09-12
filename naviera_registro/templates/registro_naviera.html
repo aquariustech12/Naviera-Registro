@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Registro de Navieras</title>
+    {% load static %}
+    <link rel="stylesheet" type="text/css" href="{% static 'styles.css' %}">
+    <link rel="stylesheet" type="text/css" href="{% static 'cookiestyles.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+</head>
+<body>
+    <!-- Contenido principal de la página -->
+    <h1>Registro de Navieras</h1>
+    {% if messages %}
+    <ul>
+        {% for message in messages %}
+        <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+    <!-- Formulario de registro -->
+    <form method="post" id="registroForm">
+        {% csrf_token %}
+
+        <label for="nombre_empresa">Nombre de la empresa:</label>
+        <input type="text" id="nombre_empresa" name="nombre_empresa" required>
+
+        <label for="nombre_buque">Nombre del buque:</label>
+        <input type="text" id="nombre_buque" name="nombre_buque" required>
+
+        <label for="contacto_principal">Contacto principal:</label>
+        <input type="text" id="contacto_principal" name="contacto_principal" required>
+
+        <label for="correo_electronico">Correo electrónico:</label>
+        <input type="email" id="correo_electronico" name="correo_electronico" required>
+
+        <div>
+            <input type="checkbox" id="aceptar_privacidad" name="aceptar_privacidad" required>
+            <label for="aceptar_privacidad">Acepto la <a href="/politica-privacidad" target="_blank">Política de Privacidad</a></label>
+        </div>
+
+        <button type="submit">Registrar</button>
+        <div class="g-recaptcha" data-sitekey="6Lft2vYpAAAAAKKRgjrIJ0-01zsEcmctadyzQfTW"></div>
+    </form>
+
+    <!-- Formulario de inicio de sesión -->
+    <h2>Usuarios registrados favor de acceder</h2>
+    <form method="post" action="{% url 'login' %}">
+        {% csrf_token %}
+        <label for="username">Nombre de usuario:</label>
+        <input type="text" id="username" name="username" required>
+    
+        <label for="password">Contraseña:</label>
+        <input type="password" id="password" name="password" required>
+    
+        <button type="submit">Iniciar sesión</button>
+    </form>
+
+    <img class="image1" src="{% static 'images/gmp.jpg' %}">
+</body>
+<script src="{% static 'js/cookies.js' %}"></script>
+<div id="cookie-policy-popup" class="modal animate_animated">
+    <div class="modal-content animate_animated">
+        <h2>Política de Cookies</h2>
+        <p>Utilizamos cookies para mejorar su experiencia en nuestro sitio web. Las cookies son pequeños archivos de texto que se almacenan en su dispositivo cuando visita sitios web. Utilizamos cookies para:</p>
+        <ul>
+            <li>Recordar sus preferencias y configuraciones.</li>
+            <li>Entender cómo usa nuestro sitio web para mejorar su experiencia.</li>
+            <li>Proporcionar contenido y publicidad personalizados.</li>
+        </ul>
+        <p>Al hacer clic en "Aceptar", consiente el uso de todas las cookies. Puede configurar o rechazar el uso de cookies a través de las opciones de configuración de su navegador.</p>
+        <button id="acceptCookies">Aceptar</button>
+        <button id="configureCookies">Configurar</button>
+    </div>
+</div>
+</html>
+<footer style="opacity: 0.5; position: fixed; left: 0; bottom: 0; width: 100%; background-color: transparent; color: #272B60; text-align: center;">
+    <div class="footer-content">
+      <div class="company-info">
+        <h3>Global Maritime Protection</h3>
+        <p>Cerro Acasulco 6, Int. G. Col. Romero de Terreros<br>Coyoacán, Ciudad de México, C.P. 04310</p>
+      </div>
+      <div class="redes-sociales">
+          <a href="https://wa.me/5215581073859?text=Hola,%20me%20gustaría%20saber%20más%20sobre%20los%20servicios%20de%20proteccion%20marítima" target="_blank" rel="noopener noreferrer"><i class="fab fa-whatsapp" style="color: black;"></i></a>
+          <a href="https://www.facebook.com/GlobalMaritimeProtection/" target="_blank" rel="noopener noreferrer"><i class="fab fa-facebook" style="color: black;"></i></a>
+          <a href="https://www.youtube.com/channel/UCYqT5gXpylQoDRYW25Qgi1Q" target="_blank" rel="noopener noreferrer"><i class="fab fa-youtube" style="color: black;"></i></a>
+          <a href="https://www.linkedin.com/company/global-maritime-protection/" target="_blank" rel="noopener noreferrer"><i class="fab fa-linkedin" style="color: black;"></i></a>
+  
+          <!-- Agrega más enlaces e iconos para otras redes sociales según sea necesario -->
+      </div>
+    </div>
+</footer>

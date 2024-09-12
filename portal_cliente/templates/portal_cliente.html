@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Portal del Cliente</title>
+    {% load static %}
+    <link rel="stylesheet" type="text/css" href="{% static 'styles.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"/>
+</head>
+<body>
+    <h1>Bienvenido al Portal del Cliente</h1>
+    <p>Este es el portal donde se llevará a cabo toda la acción previa al pago del servicio y la visita al buque.</p>
+    <div class="instrucciones">
+        <!-- Agrega el contenido y las instrucciones aquí -->
+    </div>
+    <script>
+        // Ejemplo de cómo mostrar instrucciones al hacer hover sobre los campos
+        document.querySelectorAll('.campo').forEach(campo => {
+            campo.addEventListener('mouseover', function() {
+                // Mostrar instrucciones relacionadas con el campo
+                const instrucciones = document.getElementById('instrucciones-' + campo.id);
+                instrucciones.style.display = 'block';
+            });
+            campo.addEventListener('mouseout', function() {
+                // Ocultar instrucciones relacionadas con el campo
+                const instrucciones = document.getElementById('instrucciones-' + campo.id);
+                instrucciones.style.display = 'none';
+            });
+        });
+    </script>
+    <img class="image1" src="{% static 'images/gmp.jpg' %}">
+</body>
+</html>
+<footer style="opacity: 0.5; position: fixed; left: 0; bottom: 0; width: 100%; background-color: transparent; color: #272B60; text-align: center;">
+    <div class="footer-content">
+      <div class="company-info">
+        <h3>Global Maritime Protection</h3>
+        <p>Cerro Acasulco 6, Int. G. Col. Romero de Terreros<br>Coyoacán, Ciudad de México, C.P. 04310</p>
+      </div>
+      <div class="redes-sociales">
+          <a href="https://wa.me/5215581073859?text=Hola,%20me%20gustaría%20saber%20más%20sobre%20los%20servicios%20de%20proteccion%20marítima" target="_blank" rel="noopener noreferrer"><i class="fab fa-whatsapp" style="color: black;"></i></a>
+          <a href="https://www.facebook.com/GlobalMaritimeProtection/" target="_blank" rel="noopener noreferrer"><i class="fab fa-facebook" style="color: black;"></i></a>
+          <a href="https://www.youtube.com/channel/UCYqT5gXpylQoDRYW25Qgi1Q" target="_blank" rel="noopener noreferrer"><i class="fab fa-youtube" style="color: black;"></i></a>
+          <a href="https://www.linkedin.com/company/global-maritime-protection/" target="_blank" rel="noopener noreferrer"><i class="fab fa-linkedin" style="color: black;"></i></a>
+  
+          <!-- Agrega más enlaces e iconos para otras redes sociales según sea necesario -->
+      </div>
+    </div>
+</footer>

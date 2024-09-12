@@ -1,0 +1,23 @@
+# Ignore build or temporary directories
+node_modules/
+dist/
+build/
+tmp/
+logs/
+
+# Ignore editor files and configurations
+.editorconfig
+.vscode/
+.idea/
+*.swp
+
+# Ignore local environment files
+.env
+venv/
+
+# Ignore database files (assuming you're using PostgreSQL)
+*.db
+*.log
+
+# Ignore any files ending with ~ (backup files)
+*~
