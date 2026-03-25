@@ -6,6 +6,13 @@
     {% load static %}
     <link rel="stylesheet" type="text/css" href="{% static 'styles.css' %}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"/>
+<style>
+    .seccion-expediente { display: none; margin-top: 15px; background: #f4f4f4; padding: 15px; border: 1px solid #272B60; }
+    .btn-expediente { background-color: #272B60; color: white; padding: 5px 10px; cursor: pointer; border-radius: 4px; border: none; }
+    .tabla-documentos { width: 100%; border-collapse: collapse; background: white; margin-top: 10px; }
+    .tabla-documentos td { padding: 8px; border-bottom: 1px solid #ddd; font-size: 0.85em; text-align: left; }
+    .header-cat { background: #eef0f2; font-weight: bold; color: #272B60; }
+</style>
 </head>
 <body>
     <h1>Bienvenido al Portal del Cliente</h1>
@@ -29,6 +36,86 @@
         });
     </script>
     <img class="image1" src="{% static 'images/gmp.jpg' %}">
+<div class="instrucciones">
+    <h2>Gestión de Flota (PBIP)</h2>
+    <p>Registre aquí los buques que se someterán al proceso de auditoría de protección.</p>
+    
+    <form method="POST" action="{% url 'agregar_buque' %}" style="margin-bottom: 30px;">
+        {% csrf_token %}
+        <input type="text" name="nombre_buque" placeholder="Nombre del Buque" required class="campo">
+        <input type="text" name="omi" placeholder="Número OMI" required class="campo">
+        <button type="submit" style="background-color: #272B60; color: white; border: none; padding: 10px 20px; cursor: pointer;">
+            <i class="fas fa-ship"></i> Agregar Buque
+        </button>
+    </form>
+
+    <hr>
+
+    <h3>Buques Registrados</h3>
+    <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+        <thead style="background-color: #272B60; color: white;">
+            <tr>
+                <th style="padding: 10px;">Nombre del Buque</th>
+                <th style="padding: 10px;">Número OMI</th>
+                <th style="padding: 10px;">Estatus PBIP</th>
+                <th style="padding: 10px;">Acción</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for buque in buques %}
+            <tr style="border-bottom: 1px solid #ccc; text-align: center;">
+                <td style="padding: 10px;">{{ buque.nombre_buque }}</td>
+                <td style="padding: 10px;">{{ buque.OMI }}</td>
+                <td style="padding: 10px;"><span style="color: orange;">Pendiente de Auditoría</span></td>
+                <td style="padding: 10px;">
+                    <button onclick="toggleExpediente('exp-{{ buque.id }}')" style="background: none; border: none; color: #272B60; cursor: pointer; font-family: inherit; font-size: inherit;">
+                        <i class="fas fa-folder-open"></i> Ver Expediente
+                    </button>
+                </td>
+            </tr>
+
+            <tr id="exp-{{ buque.id }}" style="display: none; background-color: #f9f9f9;">
+                <td colspan="4" style="padding: 20px; text-align: left; border-bottom: 1px solid #ccc;">
+                    <div style="border: 1px solid #272B60; padding: 15px; background: white;">
+                        <h4 style="margin-top: 0; color: #272B60;">Expediente Pre-Servicio: {{ buque.nombre_buque }}</h4>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr style="background: #eee; font-weight: bold;"><td colspan="2" style="padding: 5px;">COTIZACIÓN</td></tr>
+                            <tr>
+                                <td style="padding: 8px;">Formulario FGMP-FC-01</td>
+                                <td><a href="#">[Descargar Machote]</a> | <input type="file"> <button>Subir</button></td>
+                            </tr>
+                            <tr style="background: #eee; font-weight: bold;"><td colspan="2" style="padding: 5px;">DOCUMENTAL (FGMP-RD-01)</td></tr>
+                            <tr>
+                                <td style="padding: 8px;">Lista de 27 puntos para cotejo</td>
+                                <td><button onclick="alert('Aquí cargaremos la lista completa de 27 puntos')">Abrir Checklist Documental</button></td>
+                            </tr>
+                            <tr style="background: #eee; font-weight: bold;"><td colspan="2" style="padding: 5px;">ADMINISTRATIVO</td></tr>
+                            <tr>
+                                <td style="padding: 8px;">Documentos para Finanzas</td>
+                                <td><input type="file" multiple> <button>Subir Expediente</button></td>
+                            </tr>
+                        </table>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" style="padding: 20px; text-align: center;">No hay buques registrados en su flota.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+<script>
+    function toggleExpediente(id) {
+        var fila = document.getElementById(id);
+        if (fila.style.display === "none") {
+            fila.style.display = "table-row";
+        } else {
+            fila.style.display = "none";
+        }
+    }
+</script>
 </body>
 </html>
 <footer style="opacity: 0.5; position: fixed; left: 0; bottom: 0; width: 100%; background-color: transparent; color: #272B60; text-align: center;">

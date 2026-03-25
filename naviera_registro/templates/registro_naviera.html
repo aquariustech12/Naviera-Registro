@@ -2,16 +2,16 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Registro de Navieras</title>
+    <title>Registro de Navieras - Global Maritime Protection</title>
     {% load static %}
     <link rel="stylesheet" type="text/css" href="{% static 'styles.css' %}">
     <link rel="stylesheet" type="text/css" href="{% static 'cookiestyles.css' %}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"/>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
-    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+    <script src="https://www.google.com/recaptcha/enterprise.js?render=6Lf8CZUsAAAAAHeMvEjIMPBHy-7GHepqM-zRG84b"></script>
+    <style>.grecaptcha-badge { visibility: hidden; }</style>
 </head>
 <body>
-    <!-- Contenido principal de la página -->
     <h1>Registro de Navieras</h1>
     {% if messages %}
     <ul>
@@ -20,15 +20,13 @@
         {% endfor %}
     </ul>
     {% endif %}
-    <!-- Formulario de registro -->
+
     <form method="post" id="registroForm">
         {% csrf_token %}
+        <input type="hidden" name="g-recaptcha-response" id="g-recaptcha-response">
 
         <label for="nombre_empresa">Nombre de la empresa:</label>
         <input type="text" id="nombre_empresa" name="nombre_empresa" required>
-
-        <label for="nombre_buque">Nombre del buque:</label>
-        <input type="text" id="nombre_buque" name="nombre_buque" required>
 
         <label for="contacto_principal">Contacto principal:</label>
         <input type="text" id="contacto_principal" name="contacto_principal" required>
@@ -42,53 +40,61 @@
         </div>
 
         <button type="submit">Registrar</button>
-        <div class="g-recaptcha" data-sitekey="6Lft2vYpAAAAAKKRgjrIJ0-01zsEcmctadyzQfTW"></div>
     </form>
 
-    <!-- Formulario de inicio de sesión -->
+    <script>
+      document.getElementById('registroForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const form = this;
+        grecaptcha.enterprise.ready(function() {
+          grecaptcha.enterprise.execute('6Lf8CZUsAAAAAHeMvEjIMPBHy-7GHepqM-zRG84b', {action: 'LOGIN'}).then(function(token) {
+            if (token) {
+                document.getElementById('g-recaptcha-response').value = token;
+                form.submit();
+            } else {
+                alert("Error al generar el token de seguridad.");
+            }
+          });
+        });
+      });
+    </script>
+
+    <hr>
     <h2>Usuarios registrados favor de acceder</h2>
     <form method="post" action="{% url 'login' %}">
         {% csrf_token %}
         <label for="username">Nombre de usuario:</label>
         <input type="text" id="username" name="username" required>
-    
         <label for="password">Contraseña:</label>
         <input type="password" id="password" name="password" required>
-    
         <button type="submit">Iniciar sesión</button>
     </form>
 
-    <img class="image1" src="{% static 'images/gmp.jpg' %}">
+    <img class="image1" src="{% static 'images/gmp.jpg' %}" alt="GMP Logo">
+
+    <div id="cookie-policy-popup" class="modal">
+        <div class="modal-content">
+            <h2>Política de Cookies</h2>
+            <p>Utilizamos cookies para mejorar su experiencia...</p>
+            <button id="acceptCookies">Aceptar</button>
+            <button id="configureCookies">Configurar</button>
+        </div>
+    </div>
+
+    <footer style="opacity: 0.5; position: fixed; left: 0; bottom: 0; width: 100%; background-color: transparent; color: #272B60; text-align: center;">
+        <div class="footer-content">
+          <div class="company-info">
+            <h3>Global Maritime Protection</h3>
+            <p>Cerro Acasulco 6, Int. G. Col. Romero de Terreros<br>Coyoacán, Ciudad de México, C.P. 04310</p>
+          </div>
+          <div class="redes-sociales">
+              <a href="https://wa.me/5215581073859?text=Hola,%20me%20gustaría%20saber%20más%20sobre%20los%20servicios%20de%20proteccion%20marítima" target="_blank" rel="noopener noreferrer"><i class="fab fa-whatsapp" style="color: black;"></i></a>
+              <a href="https://www.facebook.com/GlobalMaritimeProtection/" target="_blank" rel="noopener noreferrer"><i class="fab fa-facebook" style="color: black;"></i></a>
+              <a href="https://www.linkedin.com/company/global-maritime-protection/" target="_blank" rel="noopener noreferrer"><i class="fab fa-linkedin" style="color: black;"></i></a>
+              <a href="https://www.youtube.com/channel/UCYqT5gXpylQoDRYW25Qgi1Q" target="_blank" rel="noopener noreferrer"><i class="fab fa-youtube" style="color: black;"></i></a>
+          </div>
+        </div>
+    </footer>
 </body>
 <script src="{% static 'js/cookies.js' %}"></script>
-<div id="cookie-policy-popup" class="modal animate_animated">
-    <div class="modal-content animate_animated">
-        <h2>Política de Cookies</h2>
-        <p>Utilizamos cookies para mejorar su experiencia en nuestro sitio web. Las cookies son pequeños archivos de texto que se almacenan en su dispositivo cuando visita sitios web. Utilizamos cookies para:</p>
-        <ul>
-            <li>Recordar sus preferencias y configuraciones.</li>
-            <li>Entender cómo usa nuestro sitio web para mejorar su experiencia.</li>
-            <li>Proporcionar contenido y publicidad personalizados.</li>
-        </ul>
-        <p>Al hacer clic en "Aceptar", consiente el uso de todas las cookies. Puede configurar o rechazar el uso de cookies a través de las opciones de configuración de su navegador.</p>
-        <button id="acceptCookies">Aceptar</button>
-        <button id="configureCookies">Configurar</button>
-    </div>
-</div>
 </html>
-<footer style="opacity: 0.5; position: fixed; left: 0; bottom: 0; width: 100%; background-color: transparent; color: #272B60; text-align: center;">
-    <div class="footer-content">
-      <div class="company-info">
-        <h3>Global Maritime Protection</h3>
-        <p>Cerro Acasulco 6, Int. G. Col. Romero de Terreros<br>Coyoacán, Ciudad de México, C.P. 04310</p>
-      </div>
-      <div class="redes-sociales">
-          <a href="https://wa.me/5215581073859?text=Hola,%20me%20gustaría%20saber%20más%20sobre%20los%20servicios%20de%20proteccion%20marítima" target="_blank" rel="noopener noreferrer"><i class="fab fa-whatsapp" style="color: black;"></i></a>
-          <a href="https://www.facebook.com/GlobalMaritimeProtection/" target="_blank" rel="noopener noreferrer"><i class="fab fa-facebook" style="color: black;"></i></a>
-          <a href="https://www.youtube.com/channel/UCYqT5gXpylQoDRYW25Qgi1Q" target="_blank" rel="noopener noreferrer"><i class="fab fa-youtube" style="color: black;"></i></a>
-          <a href="https://www.linkedin.com/company/global-maritime-protection/" target="_blank" rel="noopener noreferrer"><i class="fab fa-linkedin" style="color: black;"></i></a>
-  
-          <!-- Agrega más enlaces e iconos para otras redes sociales según sea necesario -->
-      </div>
-    </div>
-</footer>

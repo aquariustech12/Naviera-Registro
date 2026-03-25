@@ -26,8 +26,7 @@ SECRET_KEY = 'q8!j!w4d*fklfzhuzdi&dg-$(piv8c87jiulj7^yh76!t(qa6$'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
-
+ALLOWED_HOSTS = ['192.168.100.240', 'localhost', '127.0.0.1']
 
 # Application definition
 
@@ -43,8 +42,9 @@ INSTALLED_APPS = [
     'portal_cliente',
 ]
 
-RECAPTCHA_PUBLIC_KEY = '6Lft2vYpAAAAAKKRgjrIJ0-01zsEcmctadyzQfTW'
-RECAPTCHA_PRIVATE_KEY = '6Lft2vYpAAAAABA_SkGZaGIbOoNbG4v6lXflVu74'
+RECAPTCHA_PUBLIC_KEY = '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI'
+RECAPTCHA_PRIVATE_KEY = '6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe'
+SILENCED_SYSTEM_CHECKS = ['captcha.W001'] # Esto quita la advertencia de llaves de prueba
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -140,3 +140,10 @@ EMAIL_HOST_USER = 'marketingconsultantsmx'
 EMAIL_HOST_PASSWORD = 'tqkjywajqjgomydw'
 DEFAULT_FROM_EMAIL = 'marketingconsultantsmx@gmail.com'
 
+# Configuración de redirección para que no se pierdan
+LOGIN_REDIRECT_URL = '/portal_cliente/'
+LOGOUT_REDIRECT_URL = '/'
+
+# Configuración de idioma para que el admin esté en español
+LANGUAGE_CODE = 'es-mx'
+TIME_ZONE = 'America/Mexico_City'
