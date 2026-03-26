@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Naviera, Buque
+from .models import Naviera, Buque, RequisitoBuque
 
 # 1. Creamos la vista "en línea" para los Buques
 class BuqueInline(admin.TabularInline):
@@ -19,3 +19,7 @@ class NavieraAdmin(admin.ModelAdmin):
 class BuqueAdmin(admin.ModelAdmin):
     list_display = ('nombre_buque', 'OMI', 'naviera')
     list_filter = ('naviera',) # Para filtrar barcos por empresa
+
+@admin.register(RequisitoBuque)
+class RequisitoBuqueAdmin(admin.ModelAdmin):
+    list_display = ('nombre_documento', 'buque', 'categoria', 'fecha_subida')

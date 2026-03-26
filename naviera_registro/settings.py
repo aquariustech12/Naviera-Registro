@@ -147,3 +147,7 @@ LOGOUT_REDIRECT_URL = '/'
 # Configuración de idioma para que el admin esté en español
 LANGUAGE_CODE = 'es-mx'
 TIME_ZONE = 'America/Mexico_City'
+
+# Configuración para archivos subidos por usuarios
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')

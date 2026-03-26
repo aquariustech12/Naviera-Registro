@@ -31,6 +31,6 @@ urlpatterns = [
     path('portal/', include('portal_cliente.urls')),  # Incluir URLs del portal del cliente
     path('login/', views.login_view, name='login'),
 ]
-
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATICFILES_DIRS[0])
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
