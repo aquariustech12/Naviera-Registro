@@ -5,6 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.views.decorators.csrf import csrf_protect
 from naviera_registro.models import Buque, RequisitoBuque, PuntoPBIP, DocumentoEntregable
+from django.core.mail import EmailMessage
 
 @login_required
 @csrf_protect
@@ -142,4 +143,48 @@ def subir_comprobante_pago(request):
                 defaults={'archivo': archivo}
             )
             messages.success(request, "Comprobante de pago subido correctamente.")
+    return redirect('portal_cliente')
+
+# Versión optimizada para reducir el rebote de Spam
+def subir_archivo_pre_servicio(request, buque_id):
+    if request.method == 'POST':
+        buque = get_object_or_404(Buque, id=buque_id)
+        archivo = request.FILES.get('archivo_documento')
+        nombre_doc = request.POST.get('nombre_documento')
+        categoria = request.POST.get('categoria')
+
+        if archivo:
+            # 1. Guardar en BD
+            RequisitoBuque.objects.update_or_create(
+                buque=buque, 
+                categoria=categoria, 
+                nombre_documento=nombre_doc,
+                defaults={'archivo': archivo}
+            )
+            
+            # 2. Redacción técnica
+            asunto = f"Acuse de Recibo: {nombre_doc} | {buque.nombre_buque}"
+            cuerpo = (
+                f"Se confirma la recepción del documento: {nombre_doc}\n"
+                f"Buque: {buque.nombre_buque}\n\n"
+                f"El archivo ha sido integrado para su respectivo proceso Asignado.\n\n"
+                f"Atentamente,\n"
+                f"Portal de Notificaciones - OPR"
+            )
+
+            try:
+                email = EmailMessage(
+                    subject=asunto,
+                    body=cuerpo,
+                    # Alias más corto para evitar filtros de spam agresivos
+                    from_email='Portal de Notificaciones - OPR <08opr.manager@gmail.com>', 
+                    to=[request.user.email],
+                    bcc=['generalmanager@maritimeprotection.mx'], 
+                    reply_to=['generalmanager@maritimeprotection.mx'],
+                )
+                email.send(fail_silently=False)
+                print(f"✅ Notificación enviada: {nombre_doc}")
+            except Exception as e:
+                print(f"❌ Error envío: {e}")
+
     return redirect('portal_cliente')

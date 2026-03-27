@@ -130,16 +130,6 @@ STATICFILES_DIRS = [os.path.join(BASE_DIR, 'naviera_registro', 'static')]
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# EMAIL CONFIG
-
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'marketingconsultantsmx'
-EMAIL_HOST_PASSWORD = 'tqkjywajqjgomydw'
-DEFAULT_FROM_EMAIL = 'marketingconsultantsmx@gmail.com'
-
 # Configuración de redirección para que no se pierdan
 LOGIN_REDIRECT_URL = '/portal_cliente/'
 LOGOUT_REDIRECT_URL = '/'
@@ -151,3 +141,16 @@ TIME_ZONE = 'America/Mexico_City'
 # Configuración para archivos subidos por usuarios
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# Configuración del motor de envío (Puente Gmail)
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 465
+EMAIL_USE_SSL = True
+EMAIL_USE_TLS = False
+EMAIL_HOST_USER = '08opr.manager@gmail.com'
+EMAIL_HOST_PASSWORD = 'ftvksxgftlbxukgv'
+
+# Identidad oficial de la OPR
+DEFAULT_FROM_EMAIL = '08opr.manager@gmail.com'
+SERVER_EMAIL = '08opr.manager@gmail.com'
