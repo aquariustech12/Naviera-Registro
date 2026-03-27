@@ -1,352 +1,341 @@
 <!DOCTYPE html>
 <html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title>Portal del Cliente</title>
-    {% load static %}
-    <link rel="stylesheet" type="text/css" href="{% static 'styles.css' %}">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"/>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        .btn-expediente { background-color: #272B60; color: white; padding: 5px 10px; cursor: pointer; border-radius: 4px; border: none; }
-        .table-pbip { font-size: 0.85rem; margin-top: 15px; }
-        .badge-cargado { background-color: #198754; color: white; padding: 5px 10px; border-radius: 4px; font-size: 0.75rem; }
-        .badge-pendiente { background-color: #ffc107; color: #212529; padding: 5px 10px; border-radius: 4px; font-size: 0.75rem; }
-    </style>
-</head>
-<body>
-    <div class="container-fluid px-4">
-        <h1>Bienvenido al Portal del Cliente</h1>
-        <p>Este es el portal donde se llevará a cabo toda la acción previa al pago del servicio y la visita al buque.</p>
-        <img class="image1" src="{% static 'images/gmp.jpg' %}" style="max-width: 200px; margin-bottom: 20px;">
-
-        <div class="instrucciones">
-            <h2>Gestión de Flota (PBIP)</h2>
-            <p>Registre aquí los buques que se someterán al proceso de auditoría de protección.</p>
-            
-            <form method="POST" action="{% url 'agregar_buque' %}" style="margin-bottom: 30px;">
-                {% csrf_token %}
-                <input type="text" name="nombre_buque" placeholder="Nombre del Buque" required class="campo">
-                <input type="text" name="omi" placeholder="Número OMI" required class="campo">
-                <button type="submit" style="background-color: #272B60; color: white; border: none; padding: 10px 20px; cursor: pointer;">
+    <head>
+        <meta charset="UTF-8">
+        <title>Portal del Cliente</title>
+        {% load static %}
+        <link rel="stylesheet" type="text/css" href="{% static 'styles.css' %}">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"/>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+        <style>
+            .btn-expediente { background-color: #272B60; color: white; padding: 5px 10px; cursor: pointer; border-radius: 4px; border: none; }
+            .table-pbip { font-size: 0.85rem; margin-top: 15px; }
+            .badge-cargado { background-color: #198754; color: white; padding: 5px 10px; border-radius: 4px; font-size: 0.75rem; }
+            .badge-pendiente { background-color: #ffc107; color: #212529; padding: 5px 10px; border-radius: 4px; font-size: 0.75rem; }
+        </style>
+    </head>
+    <body>
+        <div class="container-fluid px-4">
+            <h1>Bienvenido al Portal del Cliente</h1>
+            <p>Este es el portal donde se llevará a cabo toda la acción previa al pago del servicio y la visita al buque.</p>
+            <img class="image1" src="{% static 'images/gmp.jpg' %}" style="max-width: 200px; margin-bottom: 20px;">
+            <div class="instrucciones">
+                <h2>Gestión de Flota (PBIP)</h2>
+                <p>Registre aquí los buques que se someterán al proceso de auditoría de protección.</p>
+                <form method="POST" action="{% url 'agregar_buque' %}" style="margin-bottom: 30px;">
+                    {% csrf_token %}
+                    <input type="text" name="nombre_buque" placeholder="Nombre del Buque" required class="campo">
+                    <input type="text" name="omi" placeholder="Número OMI" required class="campo">
+                    <button type="submit" style="background-color: #272B60; color: white; border: none; padding: 10px 20px; cursor: pointer;">
                     <i class="fas fa-ship"></i> Agregar Buque
-                </button>
-            </form>
-
-            <hr>
-
-            <h3>Buques Registrados</h3>
-            <table class="table table-hover mt-3">
-                <thead style="background-color: #272B60; color: white;">
-                     <tr>
-                        <th>Nombre del Buque</th>
-                        <th>Número OMI</th>
-                        <th>Estatus PBIP</th>
-                        <th>Acción</th>
-                     </tr>
-                </thead>
-                <tbody>
-                    {% for buque in buques %}
-                    <tr style="vertical-align: middle;">
-                        <td>{{ buque.nombre_buque }}</td>
-                        <td>{{ buque.OMI }}</td>
-                        <td><span style="color: orange;">Pendiente de Auditoría</span></td>
-                        <td>
-                            <button class="btn btn-sm btn-outline-primary" onclick="toggleExpediente('exp-{{ buque.id }}')">
+                    </button>
+                </form>
+                <hr>
+                <h3>Buques Registrados</h3>
+                <table class="table table-hover mt-3">
+                    <thead style="background-color: #272B60; color: white;">
+                        <tr>
+                            <th>Nombre del Buque</th>
+                            <th>Número OMI</th>
+                            <th>Estatus PBIP</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for buque in buques %}
+                        <tr style="vertical-align: middle;">
+                            <td>{{ buque.nombre_buque }}</td>
+                            <td>{{ buque.OMI }}</td>
+                            <td><span style="color: orange;">Pendiente de Auditoría</span></td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary" onclick="toggleExpediente('exp-{{ buque.id }}')">
                                 <i class="fas fa-folder-open"></i> Ver Expediente
-                            </button>
-                        </td>
-                    </tr>
-
-                    <tr id="exp-{{ buque.id }}" style="display: none; background-color: #f9f9f9;">
-                        <td colspan="4" style="padding: 20px;">
-                            <div style="border: 2px solid #272B60; padding: 20px; background: white; border-radius: 8px;">
-                                <h4 style="color: #272B60; border-bottom: 2px solid #272B60; padding-bottom: 10px;">
-                                    Expediente Pre-Servicio: {{ buque.nombre_buque }}
-                                </h4>
-                                
-                                <div class="mt-3">
-                                    <h6 class="p-2" style="background: #eee; font-weight: bold;">COTIZACIÓN</h6>
-                                    <div class="d-flex justify-content-between align-items-center p-2 border-bottom">
-                                        <span>Formulario de Cotización (FGMP-FC-01)</span>
-                                        <div>
-                                           <a href="{% static 'formulario_cotizacion.pdf' %}" class="btn btn-sm btn-dark me-2" download>
-                                               <i class="fas fa-download"></i> Descargar
-                                           </a>
-                                           <form action="{% url 'subir_archivo_pre_servicio' buque.id %}" method="POST" enctype="multipart/form-data" style="display: inline;">
-                                               {% csrf_token %}
-                                               <input type="hidden" name="categoria" value="COTIZACION">
-                                               <input type="hidden" name="nombre_documento" value="Formulario de Cotización FGMP-FC-01">
-                                               <input type="file" name="archivo_documento" accept=".pdf" required style="font-size: 0.8em;">
-                                               <button type="submit" class="btn btn-sm btn-primary">
-                                                   <i class="fas fa-upload"></i> Subir
-                                               </button>
-                                           </form>
+                                </button>
+                            </td>
+                        </tr>
+                        <tr id="exp-{{ buque.id }}" style="display: none; background-color: #f9f9f9;">
+                            <td colspan="4" style="padding: 20px;">
+                                <div style="border: 2px solid #272B60; padding: 20px; background: white; border-radius: 8px;">
+                                    <h4 style="color: #272B60; border-bottom: 2px solid #272B60; padding-bottom: 10px;">
+                                        Expediente Pre-Servicio: {{ buque.nombre_buque }}
+                                    </h4>
+                                    <div class="mt-3">
+                                        <h6 class="p-2" style="background: #eee; font-weight: bold;">COTIZACIÓN</h6>
+                                        <div class="d-flex justify-content-between align-items-center p-2 border-bottom">
+                                            <div>
+                                                <span>Formulario de Cotización (FGMP-FC-01)</span>
+                                                {% if "Formulario de Cotización FGMP-FC-01" in buque.docs_listos %}
+                                                <span class="badge badge-cargado ms-2">Cargado</span>
+                                                {% else %}
+                                                <span class="badge badge-pendiente ms-2">Pendiente</span>
+                                                {% endif %}
+                                            </div>
+                                            <div>
+                                                <a href="{% static 'formulario_cotizacion.pdf' %}" class="btn btn-sm btn-dark me-2" download>
+                                                <i class="fas fa-download"></i> Descargar
+                                                </a>
+                                                <form action="{% url 'subir_archivo_pre_servicio' buque.id %}" method="POST" enctype="multipart/form-data" style="display: inline;">
+                                                    {% csrf_token %}
+                                                    <input type="hidden" name="categoria" value="COTIZACION">
+                                                    <input type="hidden" name="nombre_documento" value="Formulario de Cotización FGMP-FC-01">
+                                                    <input type="file" name="archivo_documento" accept=".pdf" required style="font-size: 0.8em;">
+                                                    <button type="submit" class="btn btn-sm btn-primary">
+                                                    <i class="fas fa-upload"></i> Subir
+                                                    </button>
+                                                </form>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-
-                                <div class="mt-4">
-                                    <h6 class="p-2" style="background: #eee; font-weight: bold;">DOCUMENTAL (FGMP-RD-01)</h6>
-                                    <p class="small text-muted px-2">Haga clic en el botón para gestionar los 27 puntos de verificación documental.</p>
-                                    <button class="btn btn-sm btn-info ms-2 mb-3" onclick="toggleExpediente('lista-pbip-{{ buque.id }}')">
+                                    <div class="mt-4">
+                                        <h6 class="p-2" style="background: #eee; font-weight: bold;">DOCUMENTAL (FGMP-RD-01)</h6>
+                                        <p class="small text-muted px-2">Haga clic en el botón para gestionar los 27 puntos de verificación documental.</p>
+                                        <button class="btn btn-sm btn-info ms-2 mb-3" onclick="toggleExpediente('lista-pbip-{{ buque.id }}')">
                                         <i class="fas fa-tasks"></i> Abrir Checklist Documental
-                                    </button>
-
-                                    <div id="lista-pbip-{{ buque.id }}" style="display: none;" class="px-2">
-                                        <table class="table table-sm table-bordered table-pbip">
-                                            <thead class="table-secondary">
-                                                <tr>
-                                                    <th style="width: 50px;">#</th>
-                                                    <th>Requisito Documental</th>
-                                                    <th style="width: 100px;">Estado</th>
-                                                    <th>Subir Archivo</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {% for punto in puntos_pbip %}
-                                                <tr>
-                                                    <td>{{ punto.numero }}</td>
-                                                    <td>{{ punto.descripcion }}</td>
-                                                    <td class="text-center">
-                                                        {% if punto.descripcion in buque.docs_listos %}
+                                        </button>
+                                        <div id="lista-pbip-{{ buque.id }}" style="display: none;" class="px-2">
+                                            <table class="table table-sm table-bordered table-pbip">
+                                                <thead class="table-secondary">
+                                                    <tr>
+                                                        <th style="width: 50px;">#</th>
+                                                        <th>Requisito Documental</th>
+                                                        <th style="width: 100px;">Estado</th>
+                                                        <th>Subir Archivo</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for punto in puntos_pbip %}
+                                                    <tr>
+                                                        <td>{{ punto.numero }}</td>
+                                                        <td>{{ punto.descripcion }}</td>
+                                                        <td class="text-center">
+                                                            {% if punto.descripcion in buque.docs_listos %}
                                                             <span class="badge badge-cargado">Cargado</span>
-                                                        {% else %}
+                                                            {% else %}
                                                             <span class="badge badge-pendiente">Pendiente</span>
-                                                        {% endif %}
-                                                    </td>
-                                                    <td>
-                                                        <form action="{% url 'subir_archivo_pre_servicio' buque.id %}" method="POST" enctype="multipart/form-data" class="d-flex">
-                                                            {% csrf_token %}
-                                                            <input type="hidden" name="categoria" value="DOCUMENTAL">
-                                                            <input type="hidden" name="nombre_documento" value="{{ punto.descripcion }}">
-                                                            <input type="file" name="archivo_documento" class="form-control form-control-sm me-1" required>
-                                                            <button type="submit" class="btn btn-primary btn-sm">Subir</button>
-                                                        </form>
-                                                    </td>
-                                                </tr>
-                                                {% endfor %}
-                                            </tbody>
-                                        </table>
+                                                            {% endif %}
+                                                        </td>
+                                                        <td>
+                                                            <form action="{% url 'subir_archivo_pre_servicio' buque.id %}" method="POST" enctype="multipart/form-data" class="d-flex">
+                                                                {% csrf_token %}
+                                                                <input type="hidden" name="categoria" value="DOCUMENTAL">
+                                                                <input type="hidden" name="nombre_documento" value="{{ punto.descripcion }}">
+                                                                <input type="file" name="archivo_documento" class="form-control form-control-sm me-1" required>
+                                                                <button type="submit" class="btn btn-primary btn-sm">Subir</button>
+                                                            </form>
+                                                        </td>
+                                                    </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
                                     </div>
-                                </div>
-
-                                {% if buque.informe_pbip %}
-                                <div class="mt-4 p-3" style="background: #d4edda; border-radius: 8px;">
-                                    <h6 class="fw-bold text-success mb-2">
-                                        <i class="fas fa-check-circle"></i> INFORME PBIP TERMINADO
-                                    </h6>
-                                    <p class="mb-2">Su proceso de auditoría ha concluido. Puede descargar el informe final:</p>
-                                    <a href="{{ buque.informe_pbip.archivo.url }}" class="btn btn-success" download>
+                                    {% if buque.informe_pbip %}
+                                    <div class="mt-4 p-3" style="background: #d4edda; border-radius: 8px;">
+                                        <h6 class="fw-bold text-success mb-2">
+                                            <i class="fas fa-check-circle"></i> INFORME PBIP TERMINADO
+                                        </h6>
+                                        <p class="mb-2">Su proceso de auditoría ha concluido. Puede descargar el informe final:</p>
+                                        <a href="{{ buque.informe_pbip.archivo.url }}" class="btn btn-success" download>
                                         <i class="fas fa-file-pdf"></i> Descargar Informe PBIP
-                                    </a>
+                                        </a>
+                                    </div>
+                                    {% endif %}
                                 </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" style="padding: 20px; text-align: center;">No hay buques registrados en su flota.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="card my-5">
+                <div class="card-header" style="background-color: #272B60; color: white;">
+                    <h5>Expediente de Alta de Cliente y Contrato</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small">Suba los documentos requeridos para la gestión administrativa y facturación.</p>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label class="form-label fw-bold mb-0">Acta Constitutiva</label>
+                                {% if "Acta Constitutiva" in naviera.docs_admin_listos %}
+                                <span class="badge badge-cargado">Cargado</span>
+                                {% else %}
+                                <span class="badge badge-pendiente">Pendiente</span>
                                 {% endif %}
                             </div>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="4" style="padding: 20px; text-align: center;">No hay buques registrados en su flota.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-
-        <div class="card my-5">
-            <div class="card-header" style="background-color: #272B60; color: white;">
-                <h5>Expediente de Alta de Cliente y Contrato</h5>
-            </div>
-            <div class="card-body">
-                <p class="text-muted small">Suba los documentos requeridos para la gestión administrativa y facturación.</p>
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <label class="form-label fw-bold mb-0">Acta Constitutiva</label>
-                            {% if "Acta Constitutiva" in naviera.docs_admin_listos %}
-                                <span class="badge badge-cargado">Cargado</span>
-                            {% else %}
-                                <span class="badge badge-pendiente">Pendiente</span>
-                            {% endif %}
+                            <form method="post" enctype="multipart/form-data" action="{% url 'subir_documento_finanzas' %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="tipo_documento" value="Acta Constitutiva">
+                                <div class="input-group">
+                                    <input type="file" name="archivo" class="form-control" required>
+                                    <button class="btn btn-outline-primary" type="submit">Subir</button>
+                                </div>
+                            </form>
                         </div>
-                        <form method="post" enctype="multipart/form-data" action="{% url 'subir_documento_finanzas' %}">
-                            {% csrf_token %}
-                            <input type="hidden" name="tipo_documento" value="Acta Constitutiva">
-                            <div class="input-group">
-                                <input type="file" name="archivo" class="form-control" required>
-                                <button class="btn btn-outline-primary" type="submit">Subir</button>
-                            </div>
-                        </form>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <label class="form-label fw-bold mb-0">Poder Notarial</label>
-                            {% if "Poder Notarial" in naviera.docs_admin_listos %}
+                        <div class="col-md-6 mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label class="form-label fw-bold mb-0">Poder Notarial</label>
+                                {% if "Poder Notarial" in naviera.docs_admin_listos %}
                                 <span class="badge badge-cargado">Cargado</span>
-                            {% else %}
+                                {% else %}
                                 <span class="badge badge-pendiente">Pendiente</span>
-                            {% endif %}
-                        </div>
-                        <form method="post" enctype="multipart/form-data" action="{% url 'subir_documento_finanzas' %}">
-                            {% csrf_token %}
-                            <input type="hidden" name="tipo_documento" value="Poder Notarial">
-                            <div class="input-group">
-                                <input type="file" name="archivo" class="form-control" required>
-                                <button class="btn btn-outline-primary" type="submit">Subir</button>
+                                {% endif %}
                             </div>
-                        </form>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <label class="form-label fw-bold mb-0">INE Representante</label>
-                            {% if "INE Representante" in naviera.docs_admin_listos %}
+                            <form method="post" enctype="multipart/form-data" action="{% url 'subir_documento_finanzas' %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="tipo_documento" value="Poder Notarial">
+                                <div class="input-group">
+                                    <input type="file" name="archivo" class="form-control" required>
+                                    <button class="btn btn-outline-primary" type="submit">Subir</button>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label class="form-label fw-bold mb-0">INE Representante</label>
+                                {% if "INE Representante" in naviera.docs_admin_listos %}
                                 <span class="badge badge-cargado">Cargado</span>
-                            {% else %}
+                                {% else %}
                                 <span class="badge badge-pendiente">Pendiente</span>
-                            {% endif %}
-                        </div>
-                        <form method="post" enctype="multipart/form-data" action="{% url 'subir_documento_finanzas' %}">
-                            {% csrf_token %}
-                            <input type="hidden" name="tipo_documento" value="INE Representante">
-                            <div class="input-group">
-                                <input type="file" name="archivo" class="form-control" required>
-                                <button class="btn btn-outline-primary" type="submit">Subir</button>
+                                {% endif %}
                             </div>
-                        </form>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <label class="form-label fw-bold mb-0">Opinión SAT</label>
-                            {% if "Opinión SAT" in naviera.docs_admin_listos %}
+                            <form method="post" enctype="multipart/form-data" action="{% url 'subir_documento_finanzas' %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="tipo_documento" value="INE Representante">
+                                <div class="input-group">
+                                    <input type="file" name="archivo" class="form-control" required>
+                                    <button class="btn btn-outline-primary" type="submit">Subir</button>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label class="form-label fw-bold mb-0">Opinión SAT</label>
+                                {% if "Opinión SAT" in naviera.docs_admin_listos %}
                                 <span class="badge badge-cargado">Cargado</span>
-                            {% else %}
+                                {% else %}
                                 <span class="badge badge-pendiente">Pendiente</span>
-                            {% endif %}
-                        </div>
-                        <form method="post" enctype="multipart/form-data" action="{% url 'subir_documento_finanzas' %}">
-                            {% csrf_token %}
-                            <input type="hidden" name="tipo_documento" value="Opinión SAT">
-                            <div class="input-group">
-                                <input type="file" name="archivo" class="form-control" required>
-                                <button class="btn btn-outline-primary" type="submit">Subir</button>
+                                {% endif %}
                             </div>
-                        </form>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <label class="form-label fw-bold mb-0">Estado de Cuenta</label>
-                            {% if "Estado de Cuenta" in naviera.docs_admin_listos %}
+                            <form method="post" enctype="multipart/form-data" action="{% url 'subir_documento_finanzas' %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="tipo_documento" value="Opinión SAT">
+                                <div class="input-group">
+                                    <input type="file" name="archivo" class="form-control" required>
+                                    <button class="btn btn-outline-primary" type="submit">Subir</button>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label class="form-label fw-bold mb-0">Estado de Cuenta</label>
+                                {% if "Estado de Cuenta" in naviera.docs_admin_listos %}
                                 <span class="badge badge-cargado">Cargado</span>
-                            {% else %}
+                                {% else %}
                                 <span class="badge badge-pendiente">Pendiente</span>
-                            {% endif %}
-                        </div>
-                        <form method="post" enctype="multipart/form-data" action="{% url 'subir_documento_finanzas' %}">
-                            {% csrf_token %}
-                            <input type="hidden" name="tipo_documento" value="Estado de Cuenta">
-                            <div class="input-group">
-                                <input type="file" name="archivo" class="form-control" required>
-                                <button class="btn btn-outline-primary" type="submit">Subir</button>
+                                {% endif %}
                             </div>
-                        </form>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <label class="form-label fw-bold mb-0">Directorio Contactos</label>
-                            {% if "Directorio Contactos" in naviera.docs_admin_listos %}
+                            <form method="post" enctype="multipart/form-data" action="{% url 'subir_documento_finanzas' %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="tipo_documento" value="Estado de Cuenta">
+                                <div class="input-group">
+                                    <input type="file" name="archivo" class="form-control" required>
+                                    <button class="btn btn-outline-primary" type="submit">Subir</button>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label class="form-label fw-bold mb-0">Directorio Contactos</label>
+                                {% if "Directorio Contactos" in naviera.docs_admin_listos %}
                                 <span class="badge badge-cargado">Cargado</span>
-                            {% else %}
+                                {% else %}
                                 <span class="badge badge-pendiente">Pendiente</span>
-                            {% endif %}
-                        </div>
-                        <form method="post" enctype="multipart/form-data" action="{% url 'subir_documento_finanzas' %}">
-                            {% csrf_token %}
-                            <input type="hidden" name="tipo_documento" value="Directorio Contactos">
-                            <div class="input-group">
-                                <input type="file" name="archivo" class="form-control" required>
-                                <button class="btn btn-outline-primary" type="submit">Subir</button>
+                                {% endif %}
                             </div>
-                        </form>
+                            <form method="post" enctype="multipart/form-data" action="{% url 'subir_documento_finanzas' %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="tipo_documento" value="Directorio Contactos">
+                                <div class="input-group">
+                                    <input type="file" name="archivo" class="form-control" required>
+                                    <button class="btn btn-outline-primary" type="submit">Subir</button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-
-        <!-- SECCIÓN: DOCUMENTOS FINALES -->
-        <div class="card my-5">
-            <div class="card-header bg-dark text-white">
-                <h5><i class="fas fa-file-contract"></i> Documentos Finales</h5>
-            </div>
-            <div class="card-body">
-                
-                <!-- Informes PBIP por buque -->
-                <h6 class="fw-bold mb-3">Informes de Auditoría PBIP</h6>
-                {% for buque in buques %}
+            <!-- SECCIÓN: DOCUMENTOS FINALES -->
+            <div class="card my-5">
+                <div class="card-header bg-dark text-white">
+                    <h5><i class="fas fa-file-contract"></i> Documentos Finales</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Informes PBIP por buque -->
+                    <h6 class="fw-bold mb-3">Informes de Auditoría PBIP</h6>
+                    {% for buque in buques %}
                     {% if buque.informe_pbip %}
                     <div class="alert alert-success d-flex justify-content-between align-items-center mb-2">
                         <span><i class="fas fa-check-circle"></i> {{ buque.nombre_buque }} - Informe disponible</span>
                         <a href="{{ buque.informe_pbip.archivo.url }}" class="btn btn-success btn-sm" download>
-                            <i class="fas fa-download"></i> Descargar
+                        <i class="fas fa-download"></i> Descargar
                         </a>
                     </div>
                     {% endif %}
-                {% empty %}
+                    {% empty %}
                     <p class="text-muted">No hay informes disponibles.</p>
-                {% endfor %}
-
-                <hr class="my-4">
-
-                <!-- Factura -->
-                <h6 class="fw-bold mb-3">Facturación</h6>
-                {% if naviera.factura_disponible %}
-                <div class="alert alert-success d-flex justify-content-between align-items-center">
-                    <span><i class="fas fa-file-invoice-dollar"></i> Factura disponible</span>
-                    <a href="{{ naviera.factura_disponible.archivo.url }}" class="btn btn-success" download>
+                    {% endfor %}
+                    <hr class="my-4">
+                    <!-- Factura -->
+                    <h6 class="fw-bold mb-3">Facturación</h6>
+                    {% if naviera.factura_disponible %}
+                    <div class="alert alert-success d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-file-invoice-dollar"></i> Factura disponible</span>
+                        <a href="{{ naviera.factura_disponible.archivo.url }}" class="btn btn-success" download>
                         <i class="fas fa-download"></i> Descargar Factura
-                    </a>
-                </div>
-                {% else %}
-                <div class="alert alert-info">
-                    <i class="fas fa-info-circle"></i> Su factura aún no está disponible.
-                </div>
-                {% endif %}
-
-                <hr class="my-4">
-
-                <!-- Comprobante de Pago -->
-                <h6 class="fw-bold mb-3">Comprobante de Pago</h6>
-                {% if naviera.comprobante_pago %}
-                <div class="alert alert-success">
-                    <i class="fas fa-check"></i> Comprobante subido el {{ naviera.comprobante_pago.fecha_subida|date:"d/m/Y" }}
-                    <a href="{{ naviera.comprobante_pago.archivo.url }}" class="btn btn-sm btn-outline-success ms-2" target="_blank">Ver</a>
-                </div>
-                {% else %}
-                <form method="post" enctype="multipart/form-data" action="{% url 'subir_comprobante_pago' %}">
-                    {% csrf_token %}
-                    <div class="input-group">
-                        <input type="file" name="archivo_comprobante" class="form-control" accept=".pdf,.jpg,.png" required>
-                        <button class="btn btn-primary" type="submit">
-                            <i class="fas fa-upload"></i> Subir Comprobante
-                        </button>
+                        </a>
                     </div>
-                </form>
-                {% endif %}
-                
+                    {% else %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> Su factura aún no está disponible.
+                    </div>
+                    {% endif %}
+                    <hr class="my-4">
+                    <!-- Comprobante de Pago -->
+                    <h6 class="fw-bold mb-3">Comprobante de Pago</h6>
+                    {% if naviera.comprobante_pago %}
+                    <div class="alert alert-success">
+                        <i class="fas fa-check"></i> Comprobante subido el {{ naviera.comprobante_pago.fecha_subida|date:"d/m/Y" }}
+                        <a href="{{ naviera.comprobante_pago.archivo.url }}" class="btn btn-sm btn-outline-success ms-2" target="_blank">Ver</a>
+                    </div>
+                    {% else %}
+                    <form method="post" enctype="multipart/form-data" action="{% url 'subir_comprobante_pago' %}">
+                        {% csrf_token %}
+                        <div class="input-group">
+                            <input type="file" name="archivo_comprobante" class="form-control" accept=".pdf,.jpg,.png" required>
+                            <button class="btn btn-primary" type="submit">
+                            <i class="fas fa-upload"></i> Subir Comprobante
+                            </button>
+                        </div>
+                    </form>
+                    {% endif %}
+                </div>
             </div>
         </div>
-    </div>
-
-    <script>
-        function toggleExpediente(id) {
-            var el = document.getElementById(id);
-            if (el.style.display === "none" || el.style.display === "") {
-                el.style.display = (id.startsWith('exp-')) ? "table-row" : "block";
-            } else {
-                el.style.display = "none";
+        <script>
+            function toggleExpediente(id) {
+                var el = document.getElementById(id);
+                if (el.style.display === "none" || el.style.display === "") {
+                    el.style.display = (id.startsWith('exp-')) ? "table-row" : "block";
+                } else {
+                    el.style.display = "none";
+                }
             }
-        }
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
-</body>
+        </script>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    </body>
 </html>

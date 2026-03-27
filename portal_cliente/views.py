@@ -36,7 +36,6 @@ def portal_cliente(request):
         buques = naviera.buques.all() 
         puntos_pbip = PuntoPBIP.objects.all().order_by('numero')
         
-        # Documentos administrativos de la naviera (Finanzas)
         admin_docs = RequisitoBuque.objects.filter(
             buque__isnull=True, 
             categoria='ADMINISTRATIVO'
@@ -55,7 +54,6 @@ def portal_cliente(request):
         ).values_list('nombre_documento', flat=True)
         buque.docs_listos = list(docs_subidos)
         
-        # Buscar informe PBIP disponible para este buque
         try:
             informe = DocumentoEntregable.objects.get(
                 naviera=naviera,
@@ -66,7 +64,6 @@ def portal_cliente(request):
         except DocumentoEntregable.DoesNotExist:
             buque.informe_pbip = None
     
-    # Factura disponible para la naviera
     try:
         factura = DocumentoEntregable.objects.get(
             naviera=naviera,
@@ -76,7 +73,6 @@ def portal_cliente(request):
     except DocumentoEntregable.DoesNotExist:
         naviera.factura_disponible = None
         
-    # Comprobante de pago subido por el cliente
     try:
         comprobante = DocumentoEntregable.objects.get(
             naviera=naviera,
@@ -106,14 +102,48 @@ def subir_archivo_pre_servicio(request, buque_id):
     if request.method == 'POST':
         buque = get_object_or_404(Buque, id=buque_id)
         archivo = request.FILES.get('archivo_documento')
-        categoria = request.POST.get('categoria')
         nombre_doc = request.POST.get('nombre_documento')
+        categoria = request.POST.get('categoria')
+
         if archivo:
             RequisitoBuque.objects.update_or_create(
-                buque=buque, categoria=categoria, nombre_documento=nombre_doc,
+                buque=buque, 
+                categoria=categoria, 
+                nombre_documento=nombre_doc,
                 defaults={'archivo': archivo}
             )
-            messages.success(request, f"Archivo '{nombre_doc}' guardado.")
+            
+            # Ajuste de Asunto y Cuerpo para Cotizaciones
+            if categoria == 'COTIZACION':
+                asunto = f"SOLICITUD COTIZACIÓN | {buque.nombre_buque} | ID-{buque.id}"
+                mensaje_especifico = f"Se ha recibido el formulario para la cotización del buque {buque.nombre_buque}."
+            else:
+                asunto = f"ACUSE [{buque.id}] | {nombre_doc} | {buque.nombre_buque}"
+                mensaje_especifico = f"Confirmamos la recepción del documento: {nombre_doc}\nBuque: {buque.nombre_buque}"
+
+            cuerpo = (
+                f"{mensaje_especifico}\n\n"
+                f"El archivo ha sido integrado para su respectivo proceso Asignado.\n\n"
+                f"Atentamente,\n"
+                f"Portal de Notificaciones - OPR"
+            )
+
+            try:
+                email = EmailMessage(
+                    subject=asunto,
+                    body=cuerpo,
+                    # Alias corto para Outlook
+                    from_email='Portal OPR <08opr.manager@gmail.com>', 
+                    to=[request.user.email],
+                    bcc=['generalmanager@maritimeprotection.mx'], 
+                    reply_to=['generalmanager@maritimeprotection.mx'],
+                )
+                email.send(fail_silently=False)
+                messages.success(request, f"Archivo '{nombre_doc}' guardado y notificado.")
+            except Exception as e:
+                print(f"❌ Error envío correo: {e}")
+                messages.warning(request, f"Archivo guardado, pero falló la notificación.")
+
     return redirect('portal_cliente')
 
 @login_required
@@ -124,10 +154,34 @@ def subir_documento_finanzas(request):
         archivo = request.FILES.get('archivo')
         if archivo:
             RequisitoBuque.objects.update_or_create(
-                buque=None, nombre_documento=tipo, categoria='ADMINISTRATIVO',
+                buque=None, 
+                nombre_documento=tipo, 
+                categoria='ADMINISTRATIVO',
                 defaults={'archivo': archivo}
             )
-            messages.success(request, f"Documento '{tipo}' subido.")
+            
+            asunto = f"ACUSE ADMIN | {tipo} | {request.user.username}"
+            cuerpo = (
+                f"Confirmamos la recepción del documento: {tipo}\n\n"
+                f"El archivo ha sido integrado para su respectivo proceso Asignado.\n\n"
+                f"Atentamente,\n"
+                f"Portal de Notificaciones - OPR"
+            )
+
+            try:
+                email = EmailMessage(
+                    subject=asunto,
+                    body=cuerpo,
+                    from_email='Portal OPR <08opr.manager@gmail.com>', 
+                    to=[request.user.email],
+                    bcc=['generalmanager@maritimeprotection.mx'], 
+                    reply_to=['generalmanager@maritimeprotection.mx'],
+                )
+                email.send(fail_silently=False)
+                messages.success(request, f"Documento '{tipo}' subido y notificado.")
+            except Exception as e:
+                print(f"❌ Error envío administrativo: {e}")
+
     return redirect('portal_cliente')
 
 @login_required
@@ -143,48 +197,4 @@ def subir_comprobante_pago(request):
                 defaults={'archivo': archivo}
             )
             messages.success(request, "Comprobante de pago subido correctamente.")
-    return redirect('portal_cliente')
-
-# Versión optimizada para reducir el rebote de Spam
-def subir_archivo_pre_servicio(request, buque_id):
-    if request.method == 'POST':
-        buque = get_object_or_404(Buque, id=buque_id)
-        archivo = request.FILES.get('archivo_documento')
-        nombre_doc = request.POST.get('nombre_documento')
-        categoria = request.POST.get('categoria')
-
-        if archivo:
-            # 1. Guardar en BD
-            RequisitoBuque.objects.update_or_create(
-                buque=buque, 
-                categoria=categoria, 
-                nombre_documento=nombre_doc,
-                defaults={'archivo': archivo}
-            )
-            
-            # 2. Redacción técnica
-            asunto = f"Acuse de Recibo: {nombre_doc} | {buque.nombre_buque}"
-            cuerpo = (
-                f"Se confirma la recepción del documento: {nombre_doc}\n"
-                f"Buque: {buque.nombre_buque}\n\n"
-                f"El archivo ha sido integrado para su respectivo proceso Asignado.\n\n"
-                f"Atentamente,\n"
-                f"Portal de Notificaciones - OPR"
-            )
-
-            try:
-                email = EmailMessage(
-                    subject=asunto,
-                    body=cuerpo,
-                    # Alias más corto para evitar filtros de spam agresivos
-                    from_email='Portal de Notificaciones - OPR <08opr.manager@gmail.com>', 
-                    to=[request.user.email],
-                    bcc=['generalmanager@maritimeprotection.mx'], 
-                    reply_to=['generalmanager@maritimeprotection.mx'],
-                )
-                email.send(fail_silently=False)
-                print(f"✅ Notificación enviada: {nombre_doc}")
-            except Exception as e:
-                print(f"❌ Error envío: {e}")
-
     return redirect('portal_cliente')
