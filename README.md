@@ -1,8 +1,3 @@
-<<<<<<< ours
-<<<<<<< ours
-<<<<<<< ours
-<<<<<<< ours
-<<<<<<< ours
 # Naviera-Registro
 
 Aplicacion web en Django para el alta de navieras y la gestion inicial de su flota dentro del proceso PBIP de Global Maritime Protection.
