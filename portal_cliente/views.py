@@ -4,7 +4,7 @@ from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.views.decorators.csrf import csrf_protect
-from naviera_registro.models import Buque, RequisitoBuque, PuntoPBIP
+from naviera_registro.models import Buque, RequisitoBuque, PuntoPBIP, DocumentoEntregable
 
 @login_required
 @csrf_protect
@@ -53,6 +53,37 @@ def portal_cliente(request):
             categoria__in=['COTIZACION', 'DOCUMENTAL']
         ).values_list('nombre_documento', flat=True)
         buque.docs_listos = list(docs_subidos)
+        
+        # Buscar informe PBIP disponible para este buque
+        try:
+            informe = DocumentoEntregable.objects.get(
+                naviera=naviera,
+                buque=buque,
+                tipo='INFORME_PBIP'
+            )
+            buque.informe_pbip = informe
+        except DocumentoEntregable.DoesNotExist:
+            buque.informe_pbip = None
+    
+    # Factura disponible para la naviera
+    try:
+        factura = DocumentoEntregable.objects.get(
+            naviera=naviera,
+            tipo='FACTURA'
+        )
+        naviera.factura_disponible = factura
+    except DocumentoEntregable.DoesNotExist:
+        naviera.factura_disponible = None
+        
+    # Comprobante de pago subido por el cliente
+    try:
+        comprobante = DocumentoEntregable.objects.get(
+            naviera=naviera,
+            tipo='COMPROBANTE_PAGO'
+        )
+        naviera.comprobante_pago = comprobante
+    except DocumentoEntregable.DoesNotExist:
+        naviera.comprobante_pago = None
 
     context = {'naviera': naviera, 'buques': buques, 'puntos_pbip': puntos_pbip}
     return render(request, 'portal_cliente.html', context)
@@ -96,4 +127,19 @@ def subir_documento_finanzas(request):
                 defaults={'archivo': archivo}
             )
             messages.success(request, f"Documento '{tipo}' subido.")
+    return redirect('portal_cliente')
+
+@login_required
+@csrf_protect
+def subir_comprobante_pago(request):
+    if request.method == 'POST':
+        naviera = request.user.naviera
+        archivo = request.FILES.get('archivo_comprobante')
+        if archivo:
+            DocumentoEntregable.objects.update_or_create(
+                naviera=naviera,
+                tipo='COMPROBANTE_PAGO',
+                defaults={'archivo': archivo}
+            )
+            messages.success(request, "Comprobante de pago subido correctamente.")
     return redirect('portal_cliente')

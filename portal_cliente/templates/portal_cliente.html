@@ -130,6 +130,18 @@
                                         </table>
                                     </div>
                                 </div>
+
+                                {% if buque.informe_pbip %}
+                                <div class="mt-4 p-3" style="background: #d4edda; border-radius: 8px;">
+                                    <h6 class="fw-bold text-success mb-2">
+                                        <i class="fas fa-check-circle"></i> INFORME PBIP TERMINADO
+                                    </h6>
+                                    <p class="mb-2">Su proceso de auditoría ha concluido. Puede descargar el informe final:</p>
+                                    <a href="{{ buque.informe_pbip.archivo.url }}" class="btn btn-success" download>
+                                        <i class="fas fa-file-pdf"></i> Descargar Informe PBIP
+                                    </a>
+                                </div>
+                                {% endif %}
                             </div>
                         </td>
                     </tr>
@@ -258,6 +270,69 @@
                         </form>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- SECCIÓN: DOCUMENTOS FINALES -->
+        <div class="card my-5">
+            <div class="card-header bg-dark text-white">
+                <h5><i class="fas fa-file-contract"></i> Documentos Finales</h5>
+            </div>
+            <div class="card-body">
+                
+                <!-- Informes PBIP por buque -->
+                <h6 class="fw-bold mb-3">Informes de Auditoría PBIP</h6>
+                {% for buque in buques %}
+                    {% if buque.informe_pbip %}
+                    <div class="alert alert-success d-flex justify-content-between align-items-center mb-2">
+                        <span><i class="fas fa-check-circle"></i> {{ buque.nombre_buque }} - Informe disponible</span>
+                        <a href="{{ buque.informe_pbip.archivo.url }}" class="btn btn-success btn-sm" download>
+                            <i class="fas fa-download"></i> Descargar
+                        </a>
+                    </div>
+                    {% endif %}
+                {% empty %}
+                    <p class="text-muted">No hay informes disponibles.</p>
+                {% endfor %}
+
+                <hr class="my-4">
+
+                <!-- Factura -->
+                <h6 class="fw-bold mb-3">Facturación</h6>
+                {% if naviera.factura_disponible %}
+                <div class="alert alert-success d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-file-invoice-dollar"></i> Factura disponible</span>
+                    <a href="{{ naviera.factura_disponible.archivo.url }}" class="btn btn-success" download>
+                        <i class="fas fa-download"></i> Descargar Factura
+                    </a>
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> Su factura aún no está disponible.
+                </div>
+                {% endif %}
+
+                <hr class="my-4">
+
+                <!-- Comprobante de Pago -->
+                <h6 class="fw-bold mb-3">Comprobante de Pago</h6>
+                {% if naviera.comprobante_pago %}
+                <div class="alert alert-success">
+                    <i class="fas fa-check"></i> Comprobante subido el {{ naviera.comprobante_pago.fecha_subida|date:"d/m/Y" }}
+                    <a href="{{ naviera.comprobante_pago.archivo.url }}" class="btn btn-sm btn-outline-success ms-2" target="_blank">Ver</a>
+                </div>
+                {% else %}
+                <form method="post" enctype="multipart/form-data" action="{% url 'subir_comprobante_pago' %}">
+                    {% csrf_token %}
+                    <div class="input-group">
+                        <input type="file" name="archivo_comprobante" class="form-control" accept=".pdf,.jpg,.png" required>
+                        <button class="btn btn-primary" type="submit">
+                            <i class="fas fa-upload"></i> Subir Comprobante
+                        </button>
+                    </div>
+                </form>
+                {% endif %}
+                
             </div>
         </div>
     </div>

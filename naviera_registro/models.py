@@ -46,3 +46,24 @@ class PuntoPBIP(models.Model):
 
     def __str__(self):
         return f"{self.numero}. {self.descripcion}"
+
+class DocumentoEntregable(models.Model):
+    TIPOS = [
+        ('INFORME_PBIP', 'Informe PBIP Terminado'),
+        ('FACTURA', 'Factura'),
+        ('COMPROBANTE_PAGO', 'Comprobante de Pago'),
+    ]
+    
+    naviera = models.ForeignKey(Naviera, on_delete=models.CASCADE, related_name='entregables')
+    buque = models.ForeignKey(Buque, on_delete=models.CASCADE, null=True, blank=True)
+    tipo = models.CharField(max_length=20, choices=TIPOS)
+    archivo = models.FileField(upload_to='entregables/%Y/%m/')
+    fecha_subida = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        unique_together = ['naviera', 'buque', 'tipo']
+    
+    def __str__(self):
+        if self.buque:
+            return f"{self.get_tipo_display()} - {self.buque.nombre_buque}"
+        return f"{self.get_tipo_display()} - {self.naviera.nombre_empresa}"

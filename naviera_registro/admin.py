@@ -1,5 +1,6 @@
 from django.contrib import admin
 from .models import Naviera, Buque, RequisitoBuque
+from .models import DocumentoEntregable
 
 # 1. Creamos la vista "en línea" para los Buques
 class BuqueInline(admin.TabularInline):
@@ -23,3 +24,8 @@ class BuqueAdmin(admin.ModelAdmin):
 @admin.register(RequisitoBuque)
 class RequisitoBuqueAdmin(admin.ModelAdmin):
     list_display = ('nombre_documento', 'buque', 'categoria', 'fecha_subida')
+
+@admin.register(DocumentoEntregable)
+class DocumentoEntregableAdmin(admin.ModelAdmin):
+    list_display = ['naviera', 'buque', 'tipo', 'fecha_subida']
+    list_filter = ['tipo', 'fecha_subida']
