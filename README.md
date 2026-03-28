@@ -1,48 +1,53 @@
 # Naviera-Registro
 
-Aplicacion web en Django para el alta de navieras y la gestion inicial de su flota dentro del proceso PBIP de Global Maritime Protection.
+Aplicación web en Django para el registro de navieras, la carga documental de buques y el seguimiento inicial del expediente pre-servicio dentro del flujo PBIP de Global Maritime Protection.
 
-## Repositorio
+## Qué hace hoy
 
-- Gitea `origin`: `http://192.168.100.201:3000/yogit/Naviera-Registro.git`
+- Registro público de navieras con validación por Google reCAPTCHA Enterprise.
+- Creación automática de usuario Django y alta de la naviera asociada.
+- Envío de contraseña temporal por correo al completar el registro.
+- Inicio de sesión desde la misma pantalla de acceso/registro.
+- Cambio obligatorio de contraseña en el primer acceso.
+- Portal del cliente para registrar buques.
+- Carga de documentos por buque para cotización y verificación documental.
+- Carga de documentos administrativos generales de la naviera.
+- Gestión de entregables como informe PBIP, factura y comprobante de pago.
+- Disparo de análisis MIA sobre documentos cargados y envío de notificaciones por correo.
 
-## Funcionalidad actual
+## Stack actual
 
-- Registro de navieras desde un formulario publico.
-- Validacion de seguridad con Google reCAPTCHA Enterprise.
-- Creacion automatica de usuario Django y registro vinculado de la naviera.
-- Envio de correo con contrasena temporal al completar el alta.
-- Inicio de sesion desde la misma pagina de registro.
-- Cambio obligatorio de contrasena en el primer acceso.
-- Portal del cliente para registrar buques de la naviera.
-- Vista inicial del expediente pre-servicio por buque.
-- Paginas informativas de politica de privacidad y configuracion de cookies.
-
-## Stack
-
-- Python
+- Python 3
 - Django 5.2.2
-- SQLite para desarrollo local
+- SQLite para entorno local
 - HTML, CSS y JavaScript
 - `django-recaptcha`
 - Pillow
 
-## Estructura del proyecto
+## Estructura del repositorio
 
 ```text
 Naviera-Registro/
 ├── manage.py
 ├── requirements.txt
+├── db.sqlite3
+├── media/
+├── docs/
+├── scripts/
+│   └── poblar_chroma.py
 ├── naviera_registro/
-│   ├── models.py
-│   ├── views.py
-│   ├── urls.py
 │   ├── settings.py
-│   ├── templates/
-│   └── static/
+│   ├── urls.py
+│   ├── views.py
+│   ├── models.py
+│   ├── migrations/
+│   ├── static/
+│   └── templates/
 └── portal_cliente/
     ├── views.py
     ├── urls.py
+    ├── agente_mia.py
+    ├── migrations/
     └── templates/
 ```
 
@@ -50,40 +55,60 @@ Naviera-Registro/
 
 ### `Naviera`
 
-- Vinculada `OneToOne` con `django.contrib.auth.models.User`
-- Almacena empresa, contacto principal y correo electronico
+- Relación `OneToOne` con `django.contrib.auth.models.User`.
+- Guarda empresa, contacto principal y correo electrónico.
 
 ### `Buque`
 
-- Pertenece a una `Naviera`
-- Guarda nombre del buque y numero OMI
+- Relación `ForeignKey` con `Naviera`.
+- Guarda nombre del buque y número OMI.
 
 ### `RequisitoBuque`
 
-- Relacionado con `Buque`
-- Permite registrar documentos por categoria:
-  - `COTIZACION`
-  - `DOCUMENTAL`
-  - `ADMINISTRATIVO`
+- Almacena documentos de pre-servicio.
+- Soporta categorías `COTIZACION`, `DOCUMENTAL` y `ADMINISTRATIVO`.
+- Puede quedar sin buque para documentos administrativos generales.
+
+### `PuntoPBIP`
+
+- Catálogo maestro de puntos de revisión PBIP.
+- Se usa para mostrar la estructura del expediente en portal.
+
+### `DocumentoEntregable`
+
+- Guarda entregables finales por naviera o por buque.
+- Tipos actuales: `INFORME_PBIP`, `FACTURA`, `COMPROBANTE_PAGO`.
+
+### `AnalisisMIA`
+
+- Relación `OneToOne` con `RequisitoBuque`.
+- Conserva resumen técnico, alertas y metadatos del análisis automático.
 
 ## Rutas principales
 
-- `/` y `/registro-naviera/`: registro de navieras
-- `/login/`: autenticacion
-- `/portal/`: portal del cliente
-- `/portal/cambiar-password/`: cambio obligatorio de contrasena
-- `/portal/agregar-buque/`: alta de buques
-- `/politica-privacidad/`: aviso de privacidad
-- `/configuracion-cookies/`: preferencias de cookies
-- `/admin/`: administrador de Django
+- `/` y `/registro-naviera/`: alta pública de navieras.
+- `/login/`: autenticación.
+- `/portal/`: portal principal del cliente.
+- `/portal/cambiar-password/`: cambio obligatorio de contraseña.
+- `/portal/agregar-buque/`: alta de buques.
+- `/portal/subir-archivo/<buque_id>/`: carga documental por buque.
+- `/portal/subir-finanzas/`: carga documental administrativa.
+- `/portal/subir-comprobante/`: carga de comprobante de pago.
+- `/politica-privacidad/`: aviso de privacidad.
+- `/configuracion-cookies/`: configuración de cookies.
+- `/admin/`: administrador de Django.
 
-## Instalacion local
+## Flujo funcional
 
-1. Clonar el repositorio.
-2. Crear y activar un entorno virtual.
-3. Instalar dependencias.
-4. Ejecutar migraciones.
-5. Iniciar el servidor.
+1. La naviera se registra desde el formulario público.
+2. El sistema valida el captcha, crea el usuario y el registro de naviera.
+3. Se envía una contraseña temporal por correo.
+4. El usuario inicia sesión y debe cambiar su contraseña.
+5. Desde el portal registra buques y sube documentos por expediente.
+6. Cada carga puede disparar análisis MIA y acuse por correo.
+7. El portal también muestra entregables y comprobantes asociados.
+
+## Instalación local
 
 ```bash
 git clone http://192.168.100.201:3000/yogit/Naviera-Registro.git
@@ -95,37 +120,41 @@ python manage.py migrate
 python manage.py runserver
 ```
 
-## Dependencias
+Servidor local por defecto: `http://127.0.0.1:8000/`
 
-Archivo [`requirements.txt`](/home/julian/Naviera-Registro/requirements.txt):
+## Configuración actual del proyecto
 
-- `Django==5.2.2`
-- `django-recaptcha==4.0.0`
-- `captcha==0.5.0`
-- `pillow==12.1.1`
-
-## Flujo de uso
-
-1. La naviera completa el formulario publico de registro.
-2. El sistema valida el captcha y crea un usuario con contrasena temporal.
-3. Se crea el registro de la naviera y se envia el acceso por correo.
-4. El usuario inicia sesion.
-5. En el primer acceso debe establecer su contrasena definitiva.
-6. Ya dentro del portal puede agregar buques y consultar su expediente base.
-
-## Configuracion actual
-
-- `ALLOWED_HOSTS`: `192.168.100.240`, `localhost`, `127.0.0.1`
 - Base de datos local: `db.sqlite3`
+- `DEBUG = True`
+- `ALLOWED_HOSTS = ['192.168.100.240', 'localhost', '127.0.0.1']`
 - Idioma: `es-mx`
 - Zona horaria: `America/Mexico_City`
+- Archivos estáticos: `naviera_registro/static/`
+- Archivos subidos: `media/`
 
-## Observaciones tecnicas
+## Integraciones y dependencias pendientes de formalizar
 
-- El proyecto usa credenciales SMTP y llaves de reCAPTCHA directamente en el codigo. Para un despliegue real conviene moverlas a variables de entorno.
-- La carga completa de documentos por expediente aun no esta terminada en las plantillas del portal.
-- En `requirements.txt` no aparece `requests`, aunque se usa en [`naviera_registro/views.py`](/home/julian/Naviera-Registro/naviera_registro/views.py).
+El código actual usa componentes que no están reflejados por completo en [`requirements.txt`](/home/julian/Naviera-Registro/requirements.txt):
 
-## Documentacion adicional
+- `requests` para reCAPTCHA Enterprise, Ollama, WhatsApp y otras llamadas HTTP.
+- `PyPDF2` para leer PDFs cargados por clientes.
+- `langchain-chroma`, `langchain-ollama`, `langchain-community` y `langchain-text-splitters` para la parte de MIA/RAG.
+
+Además, hay integraciones que hoy están configuradas directamente en código:
+
+- Credenciales SMTP en [`naviera_registro/settings.py`](/home/julian/Naviera-Registro/naviera_registro/settings.py)
+- Llaves y configuración de reCAPTCHA en [`naviera_registro/settings.py`](/home/julian/Naviera-Registro/naviera_registro/settings.py) y [`naviera_registro/views.py`](/home/julian/Naviera-Registro/naviera_registro/views.py)
+- Endpoint de Ollama en [`portal_cliente/agente_mia.py`](/home/julian/Naviera-Registro/portal_cliente/agente_mia.py)
+- Endpoint local de WhatsApp en [`portal_cliente/agente_mia.py`](/home/julian/Naviera-Registro/portal_cliente/agente_mia.py)
+
+Para un despliegue real conviene mover todo esto a variables de entorno y separar dependencias obligatorias de dependencias opcionales de IA.
+
+## Observaciones del estado actual
+
+- El portal ya cubre más que el alta inicial: incluye documentos administrativos, comprobantes y entregables.
+- El repositorio contiene datos locales y carpetas auxiliares como `db.sqlite3`, `media/`, `chroma_db/` y `venv/`.
+- El script [`scripts/poblar_chroma.py`](/home/julian/Naviera-Registro/scripts/poblar_chroma.py) apunta a una base vectorial usada por MIA.
+
+## Documentación adicional
 
 - [`docs/README.md`](/home/julian/Naviera-Registro/docs/README.md)
