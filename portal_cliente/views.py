@@ -6,6 +6,8 @@ from django.contrib import messages
 from django.views.decorators.csrf import csrf_protect
 from naviera_registro.models import Buque, RequisitoBuque, PuntoPBIP, DocumentoEntregable
 from django.core.mail import EmailMessage
+# Importamos el motor de MIA
+from .agente_mia import ejecutar_analisis_mia
 
 @login_required
 @csrf_protect
@@ -106,14 +108,21 @@ def subir_archivo_pre_servicio(request, buque_id):
         categoria = request.POST.get('categoria')
 
         if archivo:
-            RequisitoBuque.objects.update_or_create(
+            # Guardamos el objeto para pasárselo a MIA
+            doc_obj, created = RequisitoBuque.objects.update_or_create(
                 buque=buque, 
                 categoria=categoria, 
                 nombre_documento=nombre_doc,
                 defaults={'archivo': archivo}
             )
             
-            # Ajuste de Asunto y Cuerpo para Cotizaciones
+            # --- DISPARO DE MIA ---
+            try:
+                ejecutar_analisis_mia(doc_obj)
+            except Exception as mia_err:
+                print(f"❌ Error en análisis MIA: {mia_err}")
+            # ----------------------
+
             if categoria == 'COTIZACION':
                 asunto = f"SOLICITUD COTIZACIÓN | {buque.nombre_buque} | ID-{buque.id}"
                 mensaje_especifico = f"Se ha recibido el formulario para la cotización del buque {buque.nombre_buque}."
@@ -132,7 +141,6 @@ def subir_archivo_pre_servicio(request, buque_id):
                 email = EmailMessage(
                     subject=asunto,
                     body=cuerpo,
-                    # Alias corto para Outlook
                     from_email='Portal OPR <08opr.manager@gmail.com>', 
                     to=[request.user.email],
                     bcc=['generalmanager@maritimeprotection.mx'], 
@@ -153,12 +161,20 @@ def subir_documento_finanzas(request):
         tipo = request.POST.get('tipo_documento')
         archivo = request.FILES.get('archivo')
         if archivo:
-            RequisitoBuque.objects.update_or_create(
+            # Guardamos el objeto para pasárselo a MIA
+            doc_obj, created = RequisitoBuque.objects.update_or_create(
                 buque=None, 
                 nombre_documento=tipo, 
                 categoria='ADMINISTRATIVO',
                 defaults={'archivo': archivo}
             )
+            
+            # --- DISPARO DE MIA ---
+            try:
+                ejecutar_analisis_mia(doc_obj)
+            except Exception as mia_err:
+                print(f"❌ Error en análisis MIA Administrativo: {mia_err}")
+            # ----------------------
             
             asunto = f"ACUSE ADMIN | {tipo} | {request.user.username}"
             cuerpo = (

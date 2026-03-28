@@ -22,3 +22,4 @@ venv/
 # Ignore any files ending with ~ (backup files)
 *~
 db.sqlite3
+.pdf

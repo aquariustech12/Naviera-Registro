@@ -67,3 +67,18 @@ class DocumentoEntregable(models.Model):
         if self.buque:
             return f"{self.get_tipo_display()} - {self.buque.nombre_buque}"
         return f"{self.get_tipo_display()} - {self.naviera.nombre_empresa}"
+
+class AnalisisMIA(models.Model):
+    # Relacionamos la nota con el archivo que el cliente subió
+    documento = models.OneToOneField(RequisitoBuque, on_delete=models.CASCADE, related_name='analisis_mia')
+    
+    # Lo que MIA extrajo o resumió
+    resumen_tecnico = models.TextField(blank=True, null=True)
+    alertas = models.TextField(blank=True, null=True) # "Documento vencido", "RFC no coincide", etc.
+    
+    # Metadatos del análisis
+    procesado = models.BooleanField(default=False)
+    fecha_analisis = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"MIA - {self.documento.nombre_documento}"
