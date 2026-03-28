@@ -14,18 +14,17 @@ embeddings = OllamaEmbeddings(model="nomic-embed-text")
 vector_db = Chroma(persist_directory=CHROMA_PATH, embedding_function=embeddings)
 
 def consultar_normativa(tema):
-    # k=3 es suficiente, más es confundir a la IA
+    # k=3 está perfecto. Eliminamos el filtro de palabras manual que limitaba a MIA.
     docs_con_score = vector_db.similarity_search_with_score(tema, k=3)
     
-    # Filtro de confianza: Si el score es muy alto (poca similitud en Chroma), lo ignoramos
-    contexto_valido = []
-    for doc, score in docs_con_score:
-        # Solo aceptamos si hay coincidencia de palabras clave marítimas reales
-        if any(word in doc.page_content.upper() for word in ["SSAS", "ALERTA", "PRUEBA", "PROTECCIÓN", "BUQUE"]):
-            contexto_valido.append(doc.page_content)
+    # Filtro de distancia: En Chroma/Nomic, un score menor a 0.5 - 0.6 suele ser muy buena coincidencia.
+    contexto_valido = [doc.page_content for doc, score in docs_con_score if score < 0.8]
     
     if not contexto_valido:
-        return "No hay normativa específica para este equipo en la base de datos actual. Usa criterio general del Código PBIP Parte A, Sección 13."
+        # Si no encuentra nada específico, le damos la Sección 12 y 13 que son el "cajón de sastre"
+        # Hacemos una búsqueda forzada por metadatos o texto directo
+        backup = vector_db.similarity_search("Seccion 12 Oficial de proteccion del buque", k=1)
+        return backup[0].page_content if backup else "Criterio general Código PBIP Parte A."
         
     return "\n---\n".join(contexto_valido)
 
@@ -55,58 +54,46 @@ def consultar_ollama(prompt):
 
 def ejecutar_analisis_mia(documento_obj):
     nombre_raw = documento_obj.nombre_documento
-    ruta = documento_obj.archivo.path # Necesitamos la ruta para leer el PDF
+    ruta = documento_obj.archivo.path
     
-    # 1. LEER EL DOCUMENTO (Esta es la línea que faltaba)
+    # 1. Extracción y Normalización
     contenido_cliente = extraer_texto_pdf(ruta)
-    
-    # 2. MIA extrae el "Concepto Técnico" dinámicamente
-    # Esto evita que busque "21 FORMATO..." y mejor busque "Prueba SSAS"
-    query_ia = f"Extrae solo las 3 palabras clave principales de este nombre de documento: {nombre_raw}"
-    tema_tecnico = consultar_ollama(query_ia).replace('"', '') 
-    
-    # 3. Busca en la memoria con el tema limpio
-    try:
-        contexto_legal = consultar_normativa(tema_tecnico)
-    except Exception as e:
-        contexto_legal = "No se pudo acceder a la base de datos técnica."
-        print(f"Error en RAG: {e}")
+    contenido_cliente_limpio = " ".join(contenido_cliente.split())
 
-    # 4. El Prompt de Auditoría
+    # 2. Búsqueda de Referencia Directa (Lo que el documento CITA)
+    import re
+    referencias = re.findall(r"(?i)(Parte [A|B]/?\s?\d+\.?\d*)", contenido_cliente_limpio)
+    
+    # 3. Consulta a Chroma enfocada SOLO en lo que el documento dice tratar
+    # Si el documento dice "Ejercicios", buscamos "Ejercicios", no "Auditorías"
+    contexto_legal = consultar_normativa(f"Requisitos específicos para {referencias[0] if referencias else 'Ejercicios y Prácticas PBIP'}")
+
+    # 4. EL PROMPT DE AUDITORÍA OBJETIVA (Checklist)
     prompt = f"""
-    Eres MIA, auditora experta en el Código PBIP. 
-    PROHIBIDO decir que la normativa no se relaciona. Todo documento que recibes ES PARTE de la seguridad marítima.
-
-    CONTEXTO TÉCNICO:
+    Eres MIA, Auditora Técnica. Tu único trabajo es verificar si este papel cumple su función.
+    
+    NORMATIVA TÉCNICA:
     {contexto_legal}
 
-    TEXTO A AUDITAR:
-    {contenido_cliente[:3000]}
+    DOCUMENTO DEL CLIENTE:
+    {contenido_cliente_limpio[:4000]}
 
-    INSTRUCCIONES DE AUDITORÍA (ESTRICTO):
-    1. Tipo de documento: Identifícalo (ej. Certificado de Competencia).
-    2. Extracción: Nombre del Titular, Folio y Vencimiento.
-    3. Validación: Si el texto NO tiene folio o vencimiento, dictamina "NO CUMPLE" por falta de integridad documental.
-    4. Formato de respuesta: Solo envía el reporte para WhatsApp, sin introducciones ni resúmenes extra.
+    PROTOCOLO:
+    1. ¿El documento identifica al buque PROTEUS (9247522)?
+    2. ¿El contenido corresponde a la Base Legal que el propio documento cita? 
+    3. REGLA DE ORO: Si es un PROGRAMA de ejercicios, solo verifica que tenga los ejercicios y fechas. NO pidas procedimientos de revisión, auditoría o firmas de terceros que no correspondan a la ejecución de ejercicios.
+    4. Si tiene el buque, los ejercicios y la programación trimestral/anual: CUMPLE.
 
-    EJEMPLO DE SALIDA:
+    RESPUESTA:
     🤖 *MIA INFORMA: AUDITORÍA TÉCNICA*
-    📄 *Archivo:* [Nombre]
-    🔍 *Análisis:* [Breve análisis técnico]
-    ✅/❌ *Dictamen:* [Cumple/No Cumple]
+    📄 *Archivo:* {nombre_raw}
+    🔍 *Análisis:* [Resumen seco: 'Se presenta programa de ejercicios para el PROTEUS con frecuencia trimestral según B/13.5']
+    📜 *Base Legal:* [La que cite el documento, ej: Parte B/13.5]
+    ✅/❌ *Dictamen:* [Cumple / No Cumple]
     """
     
-    # 5. Respuesta de Ollama
     resultado_ia = consultar_ollama(prompt)
-    
-    # 6. Reporte final
-    reporte = (
-        f"🤖 *MIA INFORMA: AUDITORÍA TÉCNICA*\n\n"
-        f"📄 *Archivo:* {nombre_raw}\n"
-        f"🔍 *Análisis:* {resultado_ia}\n"
-    )
-    
-    enviar_whatsapp_mia(reporte)
+    enviar_whatsapp_mia(resultado_ia)
     return True
 
 def enviar_whatsapp_mia(mensaje):
