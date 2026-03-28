@@ -1,26 +1,33 @@
-# Ignore build or temporary directories
+# Build, caches and temporary directories
 node_modules/
 dist/
 build/
 tmp/
 logs/
+__pycache__/
 
-# Ignore editor files and configurations
+# Editor files and local IDE settings
 .editorconfig
 .vscode/
 .idea/
 *.swp
 
-# Ignore local environment files
+# Local environment files
 .env
 venv/
+.venv/
 
-# Ignore database files (assuming you're using PostgreSQL)
+# Local databases and generated indexes
 *.db
+*.sqlite3
 *.log
-
-# Ignore any files ending with ~ (backup files)
-*~
 db.sqlite3
-.pdf
 chroma_db/
+scripts/chroma_db/
+
+# Generated uploads and binary artifacts
+media/
+.pdf
+
+# Backup files
+*~
