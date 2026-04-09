@@ -1,105 +1,212 @@
 import os
+import re
+import json
 import requests
-import PyPDF2
-import io
-# Dentro de agente_mia.py
+import pdfplumber
+from datetime import datetime
 from langchain_chroma import Chroma
 from langchain_ollama import OllamaEmbeddings
 
-# MIA ahora tiene memoria de largo plazo
-BASE_DIR = os.path.dirname(os.path.abspath(__file__)) 
-CHROMA_PATH = os.path.join(BASE_DIR, "..", "scripts", "chroma_db")
+# OCR
+try:
+    import pytesseract
+    from pdf2image import convert_from_path
+    OCR_AVAILABLE = True
+except ImportError:
+    OCR_AVAILABLE = False
+
+CHROMA_PATH = "/home/julian/Naviera-Registro/scripts/chroma_db"
+
+print(f"--- MIA INICIANDO ---")
+print(f"OCR: {'✅' if OCR_AVAILABLE else '❌'}")
 
 embeddings = OllamaEmbeddings(model="nomic-embed-text")
-vector_db = Chroma(persist_directory=CHROMA_PATH, embedding_function=embeddings)
 
-def consultar_normativa(tema):
-    # k=3 está perfecto. Eliminamos el filtro de palabras manual que limitaba a MIA.
-    docs_con_score = vector_db.similarity_search_with_score(tema, k=3)
-    
-    # Filtro de distancia: En Chroma/Nomic, un score menor a 0.5 - 0.6 suele ser muy buena coincidencia.
-    contexto_valido = [doc.page_content for doc, score in docs_con_score if score < 0.8]
-    
-    if not contexto_valido:
-        # Si no encuentra nada específico, le damos la Sección 12 y 13 que son el "cajón de sastre"
-        # Hacemos una búsqueda forzada por metadatos o texto directo
-        backup = vector_db.similarity_search("Seccion 12 Oficial de proteccion del buque", k=1)
-        return backup[0].page_content if backup else "Criterio general Código PBIP Parte A."
-        
-    return "\n---\n".join(contexto_valido)
+try:
+    vector_db = Chroma(
+        persist_directory=CHROMA_PATH,
+        embedding_function=embeddings,
+        collection_name="auditoria_pbip"
+    )
+    count = vector_db._collection.count()
+    print(f"✅ Base de conocimiento (PBIP): {count} documentos")
+except Exception as e:
+    print(f"❌ ERROR cargando Chroma: {e}")
+    vector_db = None
 
 def extraer_texto_pdf(ruta_archivo):
     try:
-        with open(ruta_archivo, 'rb') as f:
-            lector = PyPDF2.PdfReader(f)
-            texto = ""
-            for pagina in lector.pages:
-                texto += pagina.extract_text()
-            return texto
+        texto_nativo = ""
+        with pdfplumber.open(ruta_archivo) as pdf:
+            for page in pdf.pages:
+                page_text = page.extract_text()
+                if page_text:
+                    texto_nativo += page_text + "\n"
+        if len(texto_nativo.strip()) > 200:
+            return texto_nativo
+        if OCR_AVAILABLE:
+            print("📷 Aplicando OCR...")
+            imagenes = convert_from_path(ruta_archivo, dpi=200)
+            texto_total = ""
+            for i, img in enumerate(imagenes, 1):
+                texto = pytesseract.image_to_string(img, lang='spa')
+                texto_total += f"\n--- PÁGINA {i} ---\n{texto}"
+            return texto_total if texto_total.strip() else "ERROR: OCR vacío"
+        return "ERROR: Sin texto y OCR no disponible"
     except Exception as e:
-        return f"Error leyendo PDF: {e}"
+        return f"ERROR: {e}"
 
-def consultar_ollama(prompt):
+def consultar_ollama(prompt, temperature=0.2):
     url = "http://localhost:11434/api/generate"
     payload = {
-        "model": "qwen2.5:14b", # O el que tengas (llama3, etc)
+        "model": "qwen2.5:14b",
         "prompt": prompt,
-        "stream": False
+        "stream": False,
+        "options": {"num_ctx": 16384, "temperature": temperature}  # Aumentado contexto para análisis completo
     }
     try:
-        r = requests.post(url, json=payload, timeout=30)
-        return r.json().get('response', 'No hubo respuesta de la IA')
+        r = requests.post(url, json=payload, timeout=300)
+        return r.json().get('response', 'Sin respuesta')
     except Exception as e:
-        return f"Error de IA: {e}"
+        return f"Error IA: {e}"
 
-def ejecutar_analisis_mia(documento_obj):
-    nombre_raw = documento_obj.nombre_documento
-    ruta = documento_obj.archivo.path
-    
-    # 1. Extracción y Normalización
-    contenido_cliente = extraer_texto_pdf(ruta)
-    contenido_cliente_limpio = " ".join(contenido_cliente.split())
-
-    # 2. Búsqueda de Referencia Directa (Lo que el documento CITA)
-    import re
-    referencias = re.findall(r"(?i)(Parte [A|B]/?\s?\d+\.?\d*)", contenido_cliente_limpio)
-    
-    # 3. Consulta a Chroma enfocada SOLO en lo que el documento dice tratar
-    # Si el documento dice "Ejercicios", buscamos "Ejercicios", no "Auditorías"
-    contexto_legal = consultar_normativa(f"Requisitos específicos para {referencias[0] if referencias else 'Ejercicios y Prácticas PBIP'}")
-
-    # 4. EL PROMPT DE AUDITORÍA OBJETIVA (Checklist)
-    prompt = f"""
-    Eres MIA, Auditora Técnica. Tu único trabajo es verificar si este papel cumple su función.
-    
-    NORMATIVA TÉCNICA:
-    {contexto_legal}
-
-    DOCUMENTO DEL CLIENTE:
-    {contenido_cliente_limpio[:4000]}
-
-    PROTOCOLO:
-    1. ¿El documento identifica al buque PROTEUS (9247522)?
-    2. ¿El contenido corresponde a la Base Legal que el propio documento cita? 
-    3. REGLA DE ORO: Si es un PROGRAMA de ejercicios, solo verifica que tenga los ejercicios y fechas. NO pidas procedimientos de revisión, auditoría o firmas de terceros que no correspondan a la ejecución de ejercicios.
-    4. Si tiene el buque, los ejercicios y la programación trimestral/anual: CUMPLE.
-
-    RESPUESTA:
-    🤖 *MIA INFORMA: AUDITORÍA TÉCNICA*
-    📄 *Archivo:* {nombre_raw}
-    🔍 *Análisis:* [Resumen seco: 'Se presenta programa de ejercicios para el PROTEUS con frecuencia trimestral según B/13.5']
-    📜 *Base Legal:* [La que cite el documento, ej: Parte B/13.5]
-    ✅/❌ *Dictamen:* [Cumple / No Cumple]
-    """
-    
-    resultado_ia = consultar_ollama(prompt)
-    enviar_whatsapp_mia(resultado_ia)
-    return True
-
-def enviar_whatsapp_mia(mensaje):
-    url = "http://localhost:9000/enviar"
-    payload = {"numero": "5215581073859", "mensaje": mensaje}
+def consultar_pbip_relevante(texto_documento):
+    if vector_db is None:
+        return "Base PBIP no disponible"
     try:
-        requests.post(url, json=payload, timeout=10)
+        query = texto_documento[:4000]  # Más contexto para mejor búsqueda
+        docs = vector_db.similarity_search(query, k=8)  # Más resultados
+        if not docs:
+            return "No se encontraron artículos relevantes"
+        contextos = []
+        for doc in docs:
+            meta = doc.metadata
+            ref = f"{meta.get('seccion', 'PBIP')}"
+            if meta.get('articulo'):
+                ref += f", {meta['articulo']}"
+            content = doc.page_content[:1000]  # Más contenido por artículo
+            contextos.append(f"[{ref}]\n{content}")
+        return "\n---\n".join(contextos)
+    except Exception as e:
+        return f"Error consultando PBIP: {e}"
+
+def ejecutar_analisis_mia(documento_obj, jid_remitente=None):
+    """
+    Análisis PBIP directo SIN clasificador previo.
+    El LLM identifica el documento y analiza contra PBIP en una sola pasada.
+    """
+    try:
+        print(f"\n📄 Analizando: {documento_obj.nombre_documento}")
+        print(f"📱 Destinatario: {jid_remitente or 'Default'}")
+        
+        texto = extraer_texto_pdf(documento_obj.archivo.path)
+        if texto.startswith("ERROR"):
+            return enviar_whatsapp_mia(
+                f"🤖 MIA - ERROR\n📄 {documento_obj.nombre_documento}\n❌ {texto}",
+                jid_remitente
+            )
+
+        fecha_hoy = datetime.now().strftime("%d/%m/%Y")
+
+        # Documento ilegible
+        if len(texto.strip()) < 100 or re.match(r'^[\d\s]+$', texto[:500]):
+            mensaje = f"""🤖 *MIA - AUDITORÍA*
+📄 *Documento:* {documento_obj.nombre_documento}
+🏷️ *Tipo:* ILEGIBLE
+🔍 *Análisis:* El documento no contiene texto legible.
+✅/❌ *Dictamen:* ILEGIBLE
+💡 *Recomendación:* Verifique resolución o aplique OCR."""
+            return enviar_whatsapp_mia(mensaje, jid_remitente)
+
+        # Buscar en Chroma ANTES de llamar a Ollama
+        contexto_pbip = consultar_pbip_relevante(texto)
+        
+        # UN SOLO PROMPT: Identificación + Análisis PBIP
+        prompt = f"""Eres MIA, auditor experto en el Código PBIP (Protección de Buques e Instalaciones Portuarias).
+
+FECHA DE HOY: {fecha_hoy}
+DOCUMENTO RECIBIDO: "{documento_obj.nombre_documento}"
+
+CONTENIDO DEL DOCUMENTO:
+{texto[:5000]}
+
+ARTÍCULOS RELEVANTES DEL PBIP (de Chroma):
+{contexto_pbip}
+
+INSTRUCCIONES DE ANÁLISIS PBIP:
+1. IDENTIFICA el tipo de documento leyendo su contenido:
+   - ¿Es certificado de OPB (Oficial de Protección del Buque)?
+   - ¿Es certificado de PFSO (Oficial de Protección de Instalación Portuaria)?  
+   - ¿Es plan de protección del buque (SSP)?
+   - ¿Es bitácora de protección?
+   - ¿Es documento administrativo sin relación PBIP?
+   
+2. Si es documento PBIP (OPB, PFSO, plan de protección, etc.):
+   - Extrae: nombre del titular, folio/certificado, fecha expedición, vigencia
+   - Evalúa contra los artículos del PBIP proporcionados arriba
+   - Verifica cumplimiento normativo específico
+   
+3. Si es documento administrativo sin relación PBIP:
+   - Indica que no aplica evaluación PBIP
+   
+4. NO inventes información. Si no aparece en el documento, indica "No encontrado".
+5. PBIP = ISPS (mismo código, distinto idioma).
+
+FORMATO DE RESPUESTA:
+
+🤖 *MIA - AUDITORÍA*
+📄 *Documento:* {documento_obj.nombre_documento}
+🏷️ *Tipo identificado:* [OPB/PFSO/Plan de protección/Administrativo/etc.]
+👤 *Titular/Responsable:* [nombre o No encontrado]
+📜 *Folio/Certificado:* [número o No encontrado]
+📅 *Expedición:* [fecha o No encontrado]
+⏰ *Vigencia:* [fecha o No aplica]
+🔍 *Análisis PBIP:* [Evaluación detallada contra artículos citados]
+📜 *Base Legal:* [Artículos PBIP aplicables o "No aplica PBIP"]
+✅/❌ *Dictamen:* [CUMPLE / NO CUMPLE / CUMPLE CON OBSERVACIONES / NO APLICA PBIP]
+💡 *Recomendación:* [solo si hay deficiencias]"""
+
+        resultado = consultar_ollama(prompt, temperature=0.2)
+        enviar_whatsapp_mia(resultado, jid_remitente)
+        return True
+
+    except Exception as e:
+        enviar_whatsapp_mia(
+            f"🤖 MIA - ERROR\n📄 {documento_obj.nombre_documento}\n❌ {str(e)}",
+            jid_remitente
+        )
+        return False
+
+def enviar_whatsapp_mia(mensaje, jid=None):
+    try:
+        destino = jid if jid else "5215581073859@s.whatsapp.net"
+        if '@' not in destino:
+            destino = f"{destino}@s.whatsapp.net"
+            
+        print(f"📤 Enviando WhatsApp a: {destino}")
+            
+        requests.post("http://localhost:9000/enviar", 
+                     json={"jid": destino, "mensaje": mensaje}, 
+                     timeout=10)
+        return True
+    except Exception as e:
+        print(f"❌ Error enviando WhatsApp: {e}")
+        return False
+
+def validar_correspondencia(nombre_esperado, texto_documento):
+    prompt = f"""Eres experto en documentación marítima mexicana y PBIP.
+
+TIPO ESPERADO: "{nombre_esperado}"
+
+CONTENIDO:
+{texto_documento[:1500]}
+
+Responde ÚNICAMENTE con JSON:
+{{"corresponde": true/false, "razon": "breve explicación"}}"""
+    
+    respuesta = consultar_ollama(prompt, temperature=0.0)
+    try:
+        data = json.loads(respuesta)
+        return data.get("corresponde", False), data.get("razon", "No se pudo determinar")
     except:
-        pass
+        return False, "Error al validar el documento"

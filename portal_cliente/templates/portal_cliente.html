@@ -17,6 +17,14 @@
     <body>
         <div class="container-fluid px-4">
             <h1>Bienvenido al Portal del Cliente</h1>
+            <div class="text-end mb-3">
+                <form method="POST" action="{% url 'logout' %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger btn-sm">
+                        <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+                    </button>
+                </form>
+            </div>
             <p>Este es el portal donde se llevará a cabo toda la acción previa al pago del servicio y la visita al buque.</p>
             <img class="image1" src="{% static 'images/gmp.jpg' %}" style="max-width: 200px; margin-bottom: 20px;">
             <div class="instrucciones">

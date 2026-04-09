@@ -93,18 +93,30 @@ def login_view(request):
     if request.method == 'POST':
         u = request.POST.get('username')
         p = request.POST.get('password')
-        print(f"DEBUG: Intentando login con Usuario: '{u}' y Password: '{p}'") # Esto saldrá en tu terminal
+        
+        print(f"DEBUG: Intentando login con Usuario: '{u}' y Password: '{p}'")
+        
         user = authenticate(request, username=u, password=p)
         
         if user:
-            print("DEBUG: Autenticación exitosa")
-            login(request, user)
+            print(f"DEBUG: Autenticación exitosa para {u}")
+            # Especificamos el backend por si hay conflicto de apps
+            login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+            
+            print(f"DEBUG: Sesión iniciada. ID de sesión: {request.session.session_key}")
+            print(f"DEBUG: ¿Es Superusuario?: {user.is_superuser}")
+            print(f"DEBUG: ¿Es Staff?: {user.is_staff}")
+
             if not user.is_superuser:
+                print("DEBUG: Redirigiendo a 'cambiar_password' (No es superuser)")
                 return redirect('cambiar_password')
+            
+            print("DEBUG: Redirigiendo a 'portal_cliente' (Es superuser)")
             return redirect('portal_cliente')
         
-        print("DEBUG: Autenticación fallida")
+        print(f"DEBUG: Autenticación fallida para usuario: '{u}'")
         messages.error(request, 'Credenciales incorrectas.')
+    
     return render(request, 'registro_naviera.html')
 
 def politica_privacidad(request):

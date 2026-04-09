@@ -8,33 +8,60 @@ from naviera_registro.models import Buque, RequisitoBuque, PuntoPBIP, DocumentoE
 from django.core.mail import EmailMessage
 # Importamos el motor de MIA
 from .agente_mia import ejecutar_analisis_mia
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+import json
+from .mia_comandos import procesar_comando_whatsapp, enviar_whatsapp, enviar_whatsapp_auditor
+import threading
+import os
 
 @login_required
 @csrf_protect
 def cambiar_password_obligatorio(request):
+
+    # --- DEBUG PARA VER POR QUÉ TE REBOTA ---
+    print(f"DEBUG: Entrando a cambiar_password_obligatorio")
+    print(f"DEBUG: Usuario: {request.user.username} | is_staff: {request.user.is_staff}")
+
     if request.user.is_staff:
+        print("DEBUG: El usuario YA es staff. Redirigiendo al portal_cliente directamente.")
         return redirect('portal_cliente')
+
     if request.method == 'POST':
         form = PasswordChangeForm(request.user, request.POST)
         if form.is_valid():
-            user = form.save()
+            # 1. Obtenemos el objeto SIN guardar en DB todavía
+            user = form.save(commit=False) 
+            
+            # 2. Seteamos el flag de staff (que es tu llave al portal)
             user.is_staff = True 
-            user.save()
+            
+            # 3. Guardamos TODO de un solo golpe
+            user.save() 
+            
+            # 4. Actualizamos el hash de la sesión (VITAL)
             update_session_auth_hash(request, user)
+            
+            # 5. Re-autenticamos para que el middleware vea el is_staff=True YA
             login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+            
             messages.success(request, 'Contraseña establecida correctamente.')
             return redirect('portal_cliente')
     else:
         form = PasswordChangeForm(request.user)
+        
     return render(request, 'cambiar_password.html', {'form': form})
 
 @login_required
 def portal_cliente(request):
+    print(f"DEBUG: Entrando a vista portal_cliente")
     if not request.user.is_staff:
+        print("DEBUG: Usuario NO es staff. Redirigiendo a cambio de password.")
         return redirect('cambiar_password_obligatorio')
     
     try:
-        naviera = request.user.naviera 
+        naviera = request.user.naviera
+        print(f"DEBUG: Naviera encontrada: {naviera}")
         buques = naviera.buques.all() 
         puntos_pbip = PuntoPBIP.objects.all().order_by('numero')
         
@@ -108,6 +135,28 @@ def subir_archivo_pre_servicio(request, buque_id):
         categoria = request.POST.get('categoria')
 
         if archivo:
+            # --- VALIDACIÓN RÁPIDA (sin guardar aún) ---
+            # Extraer texto del PDF temporalmente
+            import tempfile
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp:
+                for chunk in archivo.chunks():
+                    tmp.write(chunk)
+                tmp_path = tmp.name
+            from .agente_mia import extraer_texto_pdf, validar_correspondencia
+            texto = extraer_texto_pdf(tmp_path)
+            os.unlink(tmp_path)  # borrar temporal
+            if texto.startswith("ERROR"):
+                messages.error(request, f"No se pudo leer el archivo. {texto}")
+                return redirect('portal_cliente')
+            es_correcto, razon = validar_correspondencia(nombre_doc, texto)
+            if not es_correcto:
+                # No guardar, notificar error al cliente y al auditor
+                messages.error(request, f"El documento no corresponde a '{nombre_doc}'. Motivo: {razon}. Por favor suba el documento correcto.")
+                # Notificar al auditor por WhatsApp
+                auditor_msg = f"⚠️ *DOCUMENTO INCORRECTO*\nCliente: {request.user.naviera.nombre_empresa}\nBuque: {buque.nombre_buque}\nEsperado: {nombre_doc}\nMotivo: {razon}"
+                enviar_whatsapp_auditor(auditor_msg)
+                return redirect('portal_cliente')
+
             # Guardamos el objeto para pasárselo a MIA
             doc_obj, created = RequisitoBuque.objects.update_or_create(
                 buque=buque, 
@@ -118,7 +167,7 @@ def subir_archivo_pre_servicio(request, buque_id):
             
             # --- DISPARO DE MIA ---
             try:
-                ejecutar_analisis_mia(doc_obj)
+                threading.Thread(target=ejecutar_analisis_mia, args=(doc_obj, None), daemon=True).start()
             except Exception as mia_err:
                 print(f"❌ Error en análisis MIA: {mia_err}")
             # ----------------------
@@ -171,7 +220,7 @@ def subir_documento_finanzas(request):
             
             # --- DISPARO DE MIA ---
             try:
-                ejecutar_analisis_mia(doc_obj)
+                threading.Thread(target=ejecutar_analisis_mia, args=(doc_obj, None), daemon=True).start()
             except Exception as mia_err:
                 print(f"❌ Error en análisis MIA Administrativo: {mia_err}")
             # ----------------------
@@ -214,3 +263,74 @@ def subir_comprobante_pago(request):
             )
             messages.success(request, "Comprobante de pago subido correctamente.")
     return redirect('portal_cliente')
+
+@csrf_exempt
+def webhook_mia(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    try:
+        data = json.loads(request.body)
+        jid = data.get('jid')               # JID completo del remitente
+        mensaje = data.get('mensaje', '')
+
+        # Extrae el número del JID para comparar (sin el sufijo)
+        numero_remitente = jid.split('@')[0] if jid else ''
+
+        # Tu número personal autorizado (cambia por el tuyo)
+        AUDITOR_NUMBERS = ["5216444475422", "59708652171346"]   # <-- Ajusta este número
+
+        if numero_remitente != AUDITOR_NUMBERS:
+            return JsonResponse({'status': 'ignored'})
+
+        respuesta = procesar_comando_whatsapp(mensaje)
+
+        # Enviar la respuesta usando el JID completo
+        from .mia_comandos import enviar_whatsapp_jid
+        enviar_whatsapp_jid(jid, respuesta)
+
+        return JsonResponse({'status': 'ok', 'respuesta_enviada': True})
+
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+def webhook_mia_documento(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+    
+    try:
+        jid = request.POST.get('jid')
+        nombre_documento = request.POST.get('nombre_documento')
+        archivo = request.FILES.get('archivo')
+        
+        if not archivo or not jid:
+            return JsonResponse({'error': 'Missing file or jid'}, status=400)
+        
+        # Guardar el archivo temporalmente
+        import tempfile
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp:
+            for chunk in archivo.chunks():
+                tmp.write(chunk)
+            tmp_path = tmp.name
+        
+        # Crear objeto simulado
+        class DocObj:
+            def __init__(self, nombre, path):
+                self.nombre_documento = nombre
+                self.archivo = type('obj', (object,), {'path': path})()
+        
+        doc_obj = DocObj(nombre_documento, tmp_path)
+        
+        # ✅ PASAR EL JID AL ANÁLISIS PARA QUE RESPONDA AL USUARIO CORRECTO
+        import threading
+        threading.Thread(
+            target=ejecutar_analisis_mia, 
+            args=(doc_obj, jid),  # <-- jid va como segundo argumento
+            daemon=True
+        ).start()
+        
+        return JsonResponse({'status': 'processing'})
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)

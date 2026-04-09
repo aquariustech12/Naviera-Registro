@@ -20,6 +20,9 @@ from . import views
 from django.conf import settings
 from django.conf.urls.static import static
 from naviera_registro import views
+from django.contrib.auth import views as auth_views
+from portal_cliente import views as portal_views   # importa la vista del webhook
+from portal_cliente.views import webhook_mia_documento
 
 urlpatterns = [
     # Ruta raíz
@@ -30,7 +33,12 @@ urlpatterns = [
     path('configuracion-cookies/', views.configuracion_cookies, name='configuracion_cookies'),
     path('portal/', include('portal_cliente.urls')),  # Incluir URLs del portal del cliente
     path('login/', views.login_view, name='login'),
+    path('', include('portal_cliente.urls')),
+    path('logout/', auth_views.LogoutView.as_view(), name='logout'),
+    path('webhook-mia/', portal_views.webhook_mia, name='webhook_mia'),
+    path('webhook-mia-documento/', webhook_mia_documento, name='webhook_mia_documento'),
 ]
+
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATICFILES_DIRS[0])
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
