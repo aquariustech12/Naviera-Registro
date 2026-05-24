@@ -23,7 +23,7 @@ class BuqueAdmin(admin.ModelAdmin):
 
 @admin.register(RequisitoBuque)
 class RequisitoBuqueAdmin(admin.ModelAdmin):
-    list_display = ('nombre_documento', 'buque', 'categoria', 'fecha_subida')
+    list_display = ('nombre_documento', 'naviera', 'buque', 'categoria', 'fecha_subida')
 
 @admin.register(DocumentoEntregable)
 class DocumentoEntregableAdmin(admin.ModelAdmin):

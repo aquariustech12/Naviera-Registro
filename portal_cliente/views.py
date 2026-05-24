@@ -66,6 +66,7 @@ def portal_cliente(request):
         puntos_pbip = PuntoPBIP.objects.all().order_by('numero')
         
         admin_docs = RequisitoBuque.objects.filter(
+            naviera=naviera,
             buque__isnull=True, 
             categoria='ADMINISTRATIVO'
         ).values_list('nombre_documento', flat=True)
@@ -129,42 +130,22 @@ def agregar_buque(request):
 @csrf_protect
 def subir_archivo_pre_servicio(request, buque_id):
     if request.method == 'POST':
-        buque = get_object_or_404(Buque, id=buque_id)
+        # CAMBIO 1: El buque DEBE ser de la naviera del usuario logueado
+        buque = get_object_or_404(Buque, id=buque_id, naviera=request.user.naviera)
+        
         archivo = request.FILES.get('archivo_documento')
         nombre_doc = request.POST.get('nombre_documento')
         categoria = request.POST.get('categoria')
 
         if archivo:
-            # --- VALIDACIÓN RÁPIDA (sin guardar aún) ---
-            # Extraer texto del PDF temporalmente
-            import tempfile
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp:
-                for chunk in archivo.chunks():
-                    tmp.write(chunk)
-                tmp_path = tmp.name
-            from .agente_mia import extraer_texto_pdf, validar_correspondencia
-            texto = extraer_texto_pdf(tmp_path)
-            os.unlink(tmp_path)  # borrar temporal
-            if texto.startswith("ERROR"):
-                messages.error(request, f"No se pudo leer el archivo. {texto}")
-                return redirect('portal_cliente')
-            es_correcto, razon = validar_correspondencia(nombre_doc, texto)
-            if not es_correcto:
-                # No guardar, notificar error al cliente y al auditor
-                messages.error(request, f"El documento no corresponde a '{nombre_doc}'. Motivo: {razon}. Por favor suba el documento correcto.")
-                # Notificar al auditor por WhatsApp
-                auditor_msg = f"⚠️ *DOCUMENTO INCORRECTO*\nCliente: {request.user.naviera.nombre_empresa}\nBuque: {buque.nombre_buque}\nEsperado: {nombre_doc}\nMotivo: {razon}"
-                enviar_whatsapp_auditor(auditor_msg)
-                return redirect('portal_cliente')
-
-            # Guardamos el objeto para pasárselo a MIA
+            # CAMBIO 2: Guardamos con la naviera explícita para el aislamiento
             doc_obj, created = RequisitoBuque.objects.update_or_create(
+                naviera=request.user.naviera, # <--- Este es el muro de seguridad
                 buque=buque, 
                 categoria=categoria, 
                 nombre_documento=nombre_doc,
                 defaults={'archivo': archivo}
             )
-            
             # --- DISPARO DE MIA ---
             try:
                 threading.Thread(target=ejecutar_analisis_mia, args=(doc_obj, None), daemon=True).start()
@@ -212,6 +193,7 @@ def subir_documento_finanzas(request):
         if archivo:
             # Guardamos el objeto para pasárselo a MIA
             doc_obj, created = RequisitoBuque.objects.update_or_create(
+                naviera=request.user.naviera,
                 buque=None, 
                 nombre_documento=tipo, 
                 categoria='ADMINISTRATIVO',
@@ -280,7 +262,7 @@ def webhook_mia(request):
         # Tu número personal autorizado (cambia por el tuyo)
         AUDITOR_NUMBERS = ["5216444475422", "59708652171346"]   # <-- Ajusta este número
 
-        if numero_remitente != AUDITOR_NUMBERS:
+        if numero_remitente not in AUDITOR_NUMBERS:
             return JsonResponse({'status': 'ignored'})
 
         respuesta = procesar_comando_whatsapp(mensaje)

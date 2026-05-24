@@ -1,0 +1,41 @@
+body {
+    font-family: Arial, sans-serif;
+    
+}
+
+h1 {
+    color: #272B60;
+}
+
+label {
+    color: #1880C0;
+}
+
+button {
+    background-color: #1880C0;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #272B60;
+}
+
+.confirmacion {
+    color: #1880C0;
+}
+.image1 {
+    position: fixed; /* Para fijar la imagen en la posición deseada */
+    top: 50%; /* Alinea la parte superior de la imagen en el centro vertical */
+    left: 50%; /* Alinea la parte izquierda de la imagen en el centro horizontal */
+    transform: translate(-50%, -50%); /* Centra la imagen correctamente */
+    opacity: 0.2; /* Opacidad para la marca de agua */
+    z-index: -1; /* Para enviar la imagen detrás del contenido principal */
+}
+.redes-sociales a i {
+    margin: 0 10px; /* Espacio entre iconos */
+    font-size: 24px; /* Tamaño de los iconos */
+}
+      

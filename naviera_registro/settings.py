@@ -15,7 +15,16 @@ SECRET_KEY = 'q8!j!w4d*fklfzhuzdi&dg-$(piv8c87jiulj7^yh76!t(qa6$'
 DEBUG = True
 
 # Se incluyen todas las IPs relevantes para evitar errores de Host
-ALLOWED_HOSTS = ['192.168.100.240', 'localhost', '127.0.0.1', '192.168.1.71']
+ALLOWED_HOSTS = [
+    'maritimesecuritymx.com',
+    'www.maritimesecuritymx.com',
+    'portal.maritimesecuritymx.com',
+    '192.168.100.240',
+    'localhost',
+    '127.0.0.1',
+    '192.168.1.71',
+    '192.168.1.76',
+]
 
 # Application definition
 INSTALLED_APPS = [
@@ -37,6 +46,7 @@ SILENCED_SYSTEM_CHECKS = ['captcha.W001']
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',   # <-- esta línea
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -89,13 +99,13 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'naviera_registro', 'static')]
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # --- CONFIGURACIÓN DE FLUJO Y SESIONES ---
-# Esto asegura que el login redireccione correctamente y no se pierda la sesión
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/portal_cliente/'
 LOGOUT_REDIRECT_URL = '/'
@@ -103,7 +113,15 @@ LOGOUT_REDIRECT_URL = '/'
 # Estabilidad de cookies para acceso por IP local
 SESSION_COOKIE_SAMESITE = 'Lax'
 SESSION_SAVE_EVERY_REQUEST = True
-CSRF_TRUSTED_ORIGINS = ['http://192.168.1.71:8000', 'http://127.0.0.1:8000']
+
+# CORREGIDO: Lista completa en una sola asignación
+CSRF_TRUSTED_ORIGINS = [
+    'http://192.168.1.71:8000',
+    'http://127.0.0.1:8000',
+    'https://maritimesecuritymx.com',
+    'https://www.maritimesecuritymx.com',
+    'https://portal.maritimesecuritymx.com',
+]
 
 # Archivos Media
 MEDIA_URL = '/media/'

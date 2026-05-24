@@ -7,6 +7,8 @@
         <link rel="stylesheet" type="text/css" href="{% static 'styles.css' %}">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"/>
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+        <link rel="icon" type="image/png" href="{% static 'images/favicon.jpg' %}">
+        <link rel="apple-touch-icon" href="{% static 'images/favicon.jpg' %}">
         <style>
             .btn-expediente { background-color: #272B60; color: white; padding: 5px 10px; cursor: pointer; border-radius: 4px; border: none; }
             .table-pbip { font-size: 0.85rem; margin-top: 15px; }
@@ -17,6 +19,14 @@
     <body>
         <div class="container-fluid px-4">
             <h1>Bienvenido al Portal del Cliente</h1>
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
             <div class="text-end mb-3">
                 <form method="POST" action="{% url 'logout' %}">
                     {% csrf_token %}

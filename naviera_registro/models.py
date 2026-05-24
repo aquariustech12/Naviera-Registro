@@ -2,7 +2,7 @@ from django.db import models
 from django.contrib.auth.models import User
 
 class Naviera(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE) # El login
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
     nombre_empresa = models.CharField(max_length=255)
     contacto_principal = models.CharField(max_length=255)
     correo_electronico = models.EmailField()
@@ -13,7 +13,7 @@ class Naviera(models.Model):
 class Buque(models.Model):
     naviera = models.ForeignKey(Naviera, on_delete=models.CASCADE, related_name='buques')
     nombre_buque = models.CharField(max_length=255)
-    OMI = models.CharField(max_length=50) # El ID internacional del barco
+    OMI = models.CharField(max_length=50)
 
     def __str__(self):
         return f"{self.nombre_buque} (OMI: {self.OMI})"
@@ -25,7 +25,8 @@ class RequisitoBuque(models.Model):
         ('ADMINISTRATIVO', 'Expediente Administrativo'),
     ]
     
-    # Se permite null=True para que los documentos de ADMINISTRATIVO (Naviera) no obliguen a elegir un buque
+    # Campo clave para evitar el cruce de documentos entre navieras
+    naviera = models.ForeignKey(Naviera, on_delete=models.CASCADE, related_name='todos_los_requisitos', null=True, blank=True)
     buque = models.ForeignKey(Buque, on_delete=models.CASCADE, related_name='requisitos', null=True, blank=True)
     categoria = models.CharField(max_length=20, choices=CATEGORIAS)
     nombre_documento = models.CharField(max_length=255) 
@@ -33,14 +34,10 @@ class RequisitoBuque(models.Model):
     fecha_subida = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        nombre_referencia = self.buque.nombre_buque if self.buque else "General (Naviera)"
-        return f"{self.nombre_documento} - {nombre_referencia}"
+        ref = self.buque.nombre_buque if self.buque else f"Admin - {self.naviera}"
+        return f"{self.nombre_documento} ({ref})"
 
 class PuntoPBIP(models.Model):
-    """
-    Catálogo maestro para los 27 puntos del PDF FGMP-RD-01.
-    Esto sirve para que el sistema sepa qué estamos evaluando.
-    """
     numero = models.IntegerField(unique=True)
     descripcion = models.TextField()
 
@@ -53,7 +50,6 @@ class DocumentoEntregable(models.Model):
         ('FACTURA', 'Factura'),
         ('COMPROBANTE_PAGO', 'Comprobante de Pago'),
     ]
-    
     naviera = models.ForeignKey(Naviera, on_delete=models.CASCADE, related_name='entregables')
     buque = models.ForeignKey(Buque, on_delete=models.CASCADE, null=True, blank=True)
     tipo = models.CharField(max_length=20, choices=TIPOS)
@@ -62,23 +58,10 @@ class DocumentoEntregable(models.Model):
     
     class Meta:
         unique_together = ['naviera', 'buque', 'tipo']
-    
-    def __str__(self):
-        if self.buque:
-            return f"{self.get_tipo_display()} - {self.buque.nombre_buque}"
-        return f"{self.get_tipo_display()} - {self.naviera.nombre_empresa}"
 
 class AnalisisMIA(models.Model):
-    # Relacionamos la nota con el archivo que el cliente subió
     documento = models.OneToOneField(RequisitoBuque, on_delete=models.CASCADE, related_name='analisis_mia')
-    
-    # Lo que MIA extrajo o resumió
     resumen_tecnico = models.TextField(blank=True, null=True)
-    alertas = models.TextField(blank=True, null=True) # "Documento vencido", "RFC no coincide", etc.
-    
-    # Metadatos del análisis
+    alertas = models.TextField(blank=True, null=True)
     procesado = models.BooleanField(default=False)
     fecha_analisis = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"MIA - {self.documento.nombre_documento}"
