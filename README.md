@@ -230,5 +230,7 @@ El script lee `biblioteca_mia/CODIGO PBIP GMP_unlocked.pdf`, genera fragmentos, 
 ## Documentación adicional
 
 - `docs/README.md`
+- `docs/MANUAL_ADMIN.md`
+- `docs/MANUAL_PORTAL_CLIENTE.md`
 - `docs/CONTRIBUTING.md.md`
 - `docs/LICENSE.MD.md`

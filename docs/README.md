@@ -1,9 +1,14 @@
-# Naviera-Registro
+# Documentacion de Naviera-Registro
 
-## Description
+Esta carpeta contiene documentacion operativa y de soporte para el proyecto.
 
-El objetivo del proyecto es crear una plataforma de gestión de procesos PBIP (Planificación y Control de la Producción en Línea). La plataforma debe ser capaz de gestionar y automatizar las tareas relacionadas con el proceso, como la creación y asignación de tareas, la seguimiento y evaluación del progreso, etc.
+## Manuales disponibles
 
-## Wiki
+- `MANUAL_ADMIN.md`: guia para la persona encargada del panel administrativo.
+- `MANUAL_PORTAL_CLIENTE.md`: guia para clientes que usan el portal.
+- `CONTRIBUTING.md.md`: notas para contribuir al proyecto.
+- `LICENSE.MD.md`: licencia del proyecto.
 
-Esta wiki contendrá información detallada sobre cada componente del proyecto, incluyendo diagramas de flujo, explicaciones de la lógica detrás los algoritmos, etc.
+## Notas
+
+Los manuales estan escritos para usuarios operativos. Deben actualizarse cuando cambien pantallas, campos, rutas o flujos de notificacion.
