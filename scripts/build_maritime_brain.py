@@ -8,9 +8,9 @@ from langchain_ollama import OllamaEmbeddings
 from langchain_core.documents import Document
 
 # === CONFIGURACIÓN ===
-PATH_PDF = "../biblioteca_mia/CODIGO PBIP GMP_unlocked.pdf"
-CHROMA_PATH = "./chroma_db"
-SAMPLE_FILE = "./sample_fragments.txt"
+PATH_PDF = "biblioteca_mia/DOF_PBIP.pdf"
+CHROMA_PATH = "scripts/chroma_db"
+SAMPLE_FILE = "scripts/sample_fragments.txt"
 
 # LÍMITE DURO: 800 caracteres (~200 tokens) para estar 100% seguros con nomic-embed-text
 MAX_CHARS = 800
