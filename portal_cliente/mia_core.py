@@ -314,7 +314,7 @@ CONTEXTO RECIENTE:
 MENSAJE DEL AUDITOR:
 {texto}
 
-Responde de forma natural y breve (WhatsApp). 
+Responde de forma natural y breve y ÚNICAMENTE EN ESPAÑOL (WhatsApp). 
 
 SI el mensaje es una pregunta sobre trabajo (PBIP, navieras, buques, documentos), ofrece ayuda específica.
 SI es una conversación casual (saludos, chisme, humor), responde normal sin forzar el menú.
@@ -326,4 +326,4 @@ FORMATO:
 
 Solo añade el menú de opciones si el usuario preguntó explícitamente qué puedes hacer o parece perdido."""
 
-    return consultar_ollama(prompt, temperature=0.7)
+    return consultar_ollama(prompt, temperature=0.4)
