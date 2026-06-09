@@ -8,9 +8,66 @@ from .mia_herramientas import (
     herramienta_consultar_pbip,
     herramienta_consultar_estado,
     herramienta_reporte_global,
-    enviar_whatsapp_jid
+    enviar_whatsapp_jid,
+    buscar_pbip_hibrido
 )
 from .mia_documentos import herramienta_analizar_documento
+
+
+# ============================================================================
+# MAPA ESTRUCTURAL DEL CÓDIGO PBIP - Contexto para el LLM
+# ============================================================================
+
+MAPA_PBIP = """ESTRUCTURA DEL CÓDIGO PBIP - MAPA DE CONSULTA:
+
+PARTE A - BUQUES:
+1. Introducción → Contexto general
+2. Definiciones → Qué significa cada término (buque, PFSO, SSP, CSO, SSO, etc.)
+3. Ámbito de aplicación → QUÉ buques están obligados (pasaje, carga ≥500 GT, perforación)
+   ↳ 3.1: Lista obligatoria
+   ↳ 3.2: Gobiernos deciden sobre buques NO listados (remolcadores, pesqueros, yates, etc.)
+4. Responsabilidades de Gobiernos Contratantes → Qué debe hacer cada país
+5. Declaración de Protección Marítima → Obligación de cada gobierno
+6. Compañías → Responsabilidades de las navieras
+7. Protección del buque → Medidas de seguridad del buque
+8. Evaluación de la protección del buque → Cómo evaluar riesgos
+9. Plan de protección del buque → Contenido mínimo obligatorio
+10. Registros → Qué documentos guardar
+11. Oficial de la compañía (CSO) → Designación y funciones
+12. Oficial a bordo (SSO) → Funciones a bordo
+13. Ejercicios y simulacros → Frecuencia y tipo
+14. Control de acceso → Quién entra al buque
+15. Seguridad de la carga → Protección de mercancías
+16. Seguridad de la carga en contenedores → Sellos, inspección
+17. Seguridad de los suministros → Combustible, víveres, repuestos
+18. Seguridad de la tripulación → Verificación de marineros
+19. Verificación y certificación → Cómo se expide el certificado ISPS
+
+PARTE B - INSTALACIONES PORTUARIAS:
+1. Introducción
+2. Definiciones
+3. Ámbito de aplicación → QUÉ instalaciones están obligadas
+4. Responsabilidades de Gobiernos Contratantes
+5. Declaración de Protección Marítima
+6. Instalación portuaria → Responsabilidades
+7. Evaluación de la protección
+8. Plan de protección de la instalación portuaria
+9. Plan de protección del buque (Parte B)
+10. Registros
+11. Oficial de la instalación portuaria (PFSO)
+12. Ejercicios y simulacros
+13. Control de acceso
+14. Seguridad de la carga
+15. Seguridad de los suministros
+16. Plan de protección de la instalación portuaria (detalle)
+
+REGLA DE ORO PARA CONSULTAS:
+- Si preguntan "¿debe tener certificado?" → Ir a sección 3 (Parte A) o 3 (Parte B)
+- Si preguntan "¿qué debe contener?" → Ir al Plan de protección (9A o 8B/16B)
+- Si preguntan "¿quién es responsable?" → Ir a secciones 4, 6, 11, 12
+- Si el tipo de buque NO está en 3.1 → Citar 3.2 (discreción del gobierno)
+- Si preguntan sobre remolcadores, pesqueros, yates, auxiliares → NO están en 3.1, usar 3.2
+"""
 
 
 def procesar_input_mia(texto_usuario=None, documento_obj=None, numero_whatsapp=None, jid_remitente=None):
@@ -18,21 +75,20 @@ def procesar_input_mia(texto_usuario=None, documento_obj=None, numero_whatsapp=N
     ÚNICO punto de entrada para MIA.
     Desde views.py (portal), webhook (WhatsApp), o scheduler (cron).
     """
-    
+
     # 1. MEMORIA
     numero = numero_whatsapp or (jid_remitente.split('@')[0] if jid_remitente else "unknown")
     contexto = obtener_contexto(numero) if numero else []
-    
+
     # 2. CLASIFICAR
     if documento_obj:
         intencion = "ANALISIS_DOCUMENTO"
         entidades = {"documento": documento_obj.nombre_documento}
     else:
         intencion, entidades = _clasificar_intencion(texto_usuario or "", contexto)
-    
+
     # 3. EJECUTAR
     if intencion == "ANALISIS_DOCUMENTO":
-        # El analisis es async, pero capturamos errores
         try:
             respuesta = herramienta_analizar_documento(documento_obj, jid_remitente)
         except Exception as e:
@@ -40,25 +96,25 @@ def procesar_input_mia(texto_usuario=None, documento_obj=None, numero_whatsapp=N
             import traceback
             print(traceback.format_exc())
             respuesta = "❌ Error analizando el documento. Revisa los logs."
-        
+
     elif intencion == "CONSULTA_NORMATIVA":
         respuesta = _modo_consulta_pbip(texto_usuario, entidades, contexto)
-                    
+
     elif intencion == "CONSULTA_ESTADO":
         respuesta = _modo_consulta_estado(texto_usuario, entidades, contexto)
-                    
+
     elif intencion == "REPORTE_GLOBAL":
         respuesta = herramienta_reporte_global()
-                    
+
     else:
         respuesta = _modo_conversacion(texto_usuario, contexto)
-            
+
     # 4. GUARDAR (solo para interacciones de texto, no documentos)
     if numero and texto_usuario:
         guardar_mensaje(numero, "user", texto_usuario, intencion, entidades)
         if respuesta:
             guardar_mensaje(numero, "mia", respuesta, intencion, entidades)
-    
+
     return respuesta
 
 
@@ -69,30 +125,30 @@ def _clasificar_intencion(texto: str, contexto: list):
     """
     texto_lower = texto.lower().strip()
     entidades = {}
-    
+
     # --- REGLAS RÁPIDAS (90% de casos) ---
-    
+
     # Documentos
     if any(k in texto_lower for k in ["documento", "pdf", "archivo", "analiza", "revisa esto", "subí", "subi"]):
         return "ANALISIS_DOCUMENTO", entidades
-    
+
     # Normativa PBIP
     pbip_keywords = ["pbip", "código", "codigo", "normativa", "artículo", "articulo", 
                      "omi", "reglamento", "ley", "circular", "resolución", "resolucion",
-                     "control de acceso", "pfso", "opb", "sso", "csp", "isps"]
+                     "control de acceso", "pfso", "opb", "sso", "csp", "isps",
+                     "remolcador", "pesquero", "yate", "buque auxiliar", "certificado",
+                     "obligatorio", "debe tener", "necesita", "aplica a"]
     if any(k in texto_lower for k in pbip_keywords):
-        # Extraer tema específico
         entidades["tema_pbip"] = texto
         return "CONSULTA_NORMATIVA", entidades
-    
+
     # Estado / Reporte
     if texto_lower in ["estado", "reporte", "status"]:
         return "REPORTE_GLOBAL", entidades
-    
+
     estado_keywords = ["cómo va", "como va", "progreso", "porcentaje", "falta", 
                        "completado", "expediente", "avance"]
     if any(k in texto_lower for k in estado_keywords):
-        # Extraer entidades
         palabras = texto_lower.split()
         for i, palabra in enumerate(palabras):
             if palabra in ["buque", "naviera", "omi"]:
@@ -100,15 +156,15 @@ def _clasificar_intencion(texto: str, contexto: list):
                 if i + 1 < len(palabras):
                     entidades["termino"] = " ".join(palabras[i+1:])
         return "CONSULTA_ESTADO", entidades
-    
+
     # Recordatorios
     if any(k in texto_lower for k in ["recordar", "recordatorio", "alerta", "notificar", "avisar"]):
         return "RECORDATORIO", entidades
-    
+
     # Ayuda / Comandos
     if any(k in texto_lower for k in ["ayuda", "help", "comandos", "qué puedes hacer", "que puedes hacer"]):
         return "AYUDA", entidades
-    
+
     # --- FALLBACK: LLM para casos ambiguos ---
     return _clasificar_con_llm(texto, contexto)
 
@@ -117,7 +173,7 @@ def _clasificar_con_llm(texto: str, contexto: list):
     prompt = f"""Eres el clasificador de MIA. Clasifica el mensaje del auditor en UNA categoría:
 
 CATEGORÍAS:
-- CONSULTA_NORMATIVA: Pregunta sobre PBIP, OMI, regulaciones, normas marítimas
+- CONSULTA_NORMATIVA: Pregunta sobre PBIP, OMI, regulaciones, normas marítimas, certificados, tipos de buques
 - CONSULTA_ESTADO: Pregunta sobre navieras, buques, progreso, expedientes
 - CONVERSACION_GENERAL: Saludos, despedidas, preguntas sobre MIA, chit-chat
 - RECORDATORIO: Solicita alertas, recordatorios, notificaciones
@@ -129,9 +185,9 @@ MENSAJE: "{texto}"
 
 Responde SOLO con un JSON:
 {{"intencion": "CATEGORIA", "entidades": {{"tema": "tema detectado o null"}}}}"""
-    
+
     respuesta = consultar_ollama(prompt, temperature=0.0, num_ctx=4096)
-    
+
     try:
         respuesta = respuesta.strip()
         if respuesta.startswith('```json'): respuesta = respuesta[7:]
@@ -144,47 +200,65 @@ Responde SOLO con un JSON:
 
 def _modo_consulta_pbip(pregunta: str, entidades: dict, contexto: list) -> str:
     tema = entidades.get("tema_pbip") or pregunta
-    
-    # Consultar Chroma
-    articulos = herramienta_consultar_pbip(tema, k=5)
-    
-    if "No encontré" in articulos:
-        return f"🤖 *MIA*\n\nNo encontré información sobre '{tema}' en el código PBIP.\n\n💡 *Sugerencia:* Intenta con términos más específicos como \"control de acceso\", \"PFSO\", \"evaluación de riesgos\", etc."
-    
-    # Generar respuesta con LLM
-    prompt = f"""Eres MIA, experto en Código PBIP. Responde basándote EXCLUSIVAMENTE en estos artículos oficiales:
 
-{articulos}
+    # Búsqueda híbrida con motor mejorado
+    resultados = buscar_pbip_hibrido(tema, k=5, estrategia='auto')
+
+    if not resultados:
+        return f"🤖 *MIA*\n\nNo encontré información sobre '{tema}' en el código PBIP.\n\n💡 *Sugerencia:* Intenta con términos más específicos como \"control de acceso\", \"PFSO\", \"evaluación de riesgos\", etc."
+
+    # Formatear artículos recuperados
+    articulos_texto = []
+    for r in resultados:
+        meta = r['metadata']
+        ref = f"Parte {meta.get('parte', '?')} | {meta.get('seccion', 'PBIP')}"
+        contenido = r['text'][:1000] if len(r['text']) > 500 else r['text']
+        articulos_texto.append(f"[{ref}]\n{contenido}")
+
+    articulos_str = "\n---\n".join(articulos_texto)
+
+    # Generar respuesta con LLM + mapa estructural
+    prompt = f"""{MAPA_PBIP}
+
+ARTÍCULOS RECUPERADOS DE LA BASE DE DATOS:
+{articulos_str}
 
 PREGUNTA DEL AUDITOR:
 {pregunta}
 
-INSTRUCCIONES:
-1. Responde en español, claro y conciso
-2. Cita los artículos específicos con su referencia completa
-3. Si la información no está en los artículos, dilo claramente
-4. Sé profesional pero cercano
-5. Formato WhatsApp: usa *negritas* para énfasis
+INSTRUCCIONES CRÍTICAS:
+1. Usa el MAPA DE CONSULTA para saber qué secciones buscar y cómo interpretarlas
+2. Si la pregunta es sobre obligatoriedad/certificación de un tipo de buque:
+   - Primero verifica si está en la lista de la sección 3.1 (pasaje, carga ≥500 GT, perforación)
+   - Si NO está (remolcadores, pesqueros, yates, auxiliares) → cita el párrafo 3.2 sobre discreción del gobierno
+   - CONCLUSIÓN: No es obligatorio por el Código PBIP internacional, pero la autoridad marítima nacional puede exigirlo
+3. Si la pregunta es sobre contenido de planes → busca en secciones 9A o 8B/16B
+4. Si la pregunta es sobre responsabilidades → busca en secciones 4, 6, 11, 12
+5. Responde en español, claro y conciso
+6. Cita artículos específicos con referencia completa (Parte A/B, sección, párrafo si aplica)
+7. Si la información no está en los artículos, dilo claramente PERO sugiere dónde buscar
+8. Sé profesional pero cercano
+9. Formato WhatsApp: usa *negritas* para énfasis
 
 FORMATO DE RESPUESTA:
 🤖 *MIA - CONSULTA PBIP*
 
 📜 *Artículos consultados:*
-[lista breve]
+[lista breve con referencias exactas]
 
 💡 *Respuesta:*
-[respuesta detallada y estructurada]
+[respuesta detallada, estructurada y fundamentada]
 
 📌 *Referencias específicas:*
-[citas exactas de artículos]"""
-    
-    return consultar_ollama(prompt, temperature=0.3)
+[citas exactas de artículos con números de párrafo si aplica]"""
+
+    return consultar_ollama(prompt, temperature=0.2)
 
 
 def _modo_consulta_estado(pregunta: str, entidades: dict, contexto: list) -> str:
     tipo = entidades.get("tipo_busqueda")
     termino = entidades.get("termino")
-    
+
     # Si no extrajo entidades, intentar del contexto previo
     if not tipo and contexto:
         for msg in reversed(contexto):
@@ -196,7 +270,7 @@ def _modo_consulta_estado(pregunta: str, entidades: dict, contexto: list) -> str
             termino = termino or meta.get("termino")
             if tipo:
                 break
-    
+
     # Ejecutar consulta
     if tipo == "omi" and termino:
         datos = herramienta_consultar_estado(omi=termino.strip())
@@ -207,7 +281,7 @@ def _modo_consulta_estado(pregunta: str, entidades: dict, contexto: list) -> str
     else:
         # Sin entidades claras, reporte global
         datos = herramienta_reporte_global()
-    
+
     # Generar respuesta natural con LLM
     prompt = f"""Eres MIA, asistente de auditoría. El auditor pregunta sobre estado de expedientes.
 
@@ -225,8 +299,9 @@ FORMATO:
 
 💡 *Análisis:*
 [interpretación breve si aplica]"""
-    
+
     return consultar_ollama(prompt, temperature=0.3)
+
 
 def _modo_conversacion(texto: str, contexto: list) -> str:
     prompt = f"""Eres MIA (Maritime Intelligence Assistant), el asistente personal de Julian, auditor experto en seguridad marítima y PBIP.
@@ -250,5 +325,5 @@ FORMATO:
 [tu respuesta natural]
 
 Solo añade el menú de opciones si el usuario preguntó explícitamente qué puedes hacer o parece perdido."""
-    
+
     return consultar_ollama(prompt, temperature=0.7)
