@@ -254,7 +254,7 @@ def buscar_pbip_hibrido(query: str, k: int = 5, parte: str = None,
 def consultar_ollama(prompt: str, temperature: float = 0.2, num_ctx: int = 16384) -> str:
     url = "http://localhost:11434/api/generate"
     payload = {
-        "model": "qwen2.5:14b",
+        "model": "qwen3.5:latest",
         "prompt": prompt,
         "stream": False,
         "options": {"num_ctx": num_ctx, "temperature": temperature, "num_gpu": 99}
