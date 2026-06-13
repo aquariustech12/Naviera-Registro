@@ -257,7 +257,7 @@ def consultar_ollama(prompt: str, temperature: float = 0.2, num_ctx: int = 16384
         "model": "qwen2.5:14b",
         "prompt": prompt,
         "stream": False,
-        "options": {"num_ctx": num_ctx, "temperature": temperature}
+        "options": {"num_ctx": num_ctx, "temperature": temperature, "num_gpu": 99}
     }
     try:
         r = requests.post(url, json=payload, timeout=300)
