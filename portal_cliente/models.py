@@ -44,3 +44,29 @@ class ConversacionMIA(models.Model):
     
     def __str__(self):
         return f"[{self.rol.upper()}] {self.numero_whatsapp} | {self.contenido[:50]}..."
+
+# portal_cliente/models.py — AGREGAR ESTO
+
+class AlertaProactiva(models.Model):
+    TIPOS = [
+        ('ALTA_INCOMPLETA', 'Alta de naviera incompleta'),
+        ('DOCS_PBIP_FALTANTES', 'Documentos PBIP faltantes'),
+        ('DOC_PROXIMO_VENCER', 'Documento próximo a vencer'),
+        ('COTIZACION_SIN_RESPUESTA', 'Cotización sin respuesta'),
+        ('RESUMEN_DIARIO', 'Resumen diario para auditor'),
+    ]
+    
+    naviera = models.ForeignKey('naviera_registro.Naviera', on_delete=models.CASCADE, null=True, blank=True)
+    buque = models.ForeignKey('naviera_registro.Buque', on_delete=models.CASCADE, null=True, blank=True)
+    tipo_alerta = models.CharField(max_length=30, choices=TIPOS)
+    mensaje_enviado = models.TextField()
+    fecha_envio = models.DateTimeField(auto_now_add=True)
+    canal = models.CharField(max_length=20, default='whatsapp')  # whatsapp, email
+    exito = models.BooleanField(default=True)
+    reintentos = models.IntegerField(default=0)
+    
+    class Meta:
+        unique_together = ['naviera', 'buque', 'tipo_alerta', 'fecha_envio']  # Evitar duplicados diarios
+    
+    def __str__(self):
+        return f"{self.tipo_alerta} | {self.naviera} | {self.fecha_envio.strftime('%d/%m/%Y')}"

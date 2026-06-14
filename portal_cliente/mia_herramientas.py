@@ -260,8 +260,10 @@ def consultar_ollama(prompt: str, temperature: float = 0.2, num_ctx: int = 16384
         "options": {"num_ctx": num_ctx, "temperature": temperature, "num_gpu": 99}
     }
     try:
-        r = requests.post(url, json=payload, timeout=300)
+        r = requests.post(url, json=payload, timeout=600)
         return r.json().get('response', 'Sin respuesta')
+    except requests.exceptions.Timeout:
+        return "⏱️ Error IA: El modelo tardó demasiado en responder. Intenta con una pregunta más corta o verifica que Ollama no esté sobrecargado."
     except Exception as e:
         return f"Error IA: {e}"
 
@@ -501,4 +503,22 @@ def enviar_whatsapp_numero(numero: str, mensaje: str) -> bool:
         return True
     except Exception as e:
         print(f"❌ Error WhatsApp: {e}")
+        return False
+
+# Agregar a mia_herramientas.py
+
+def enviar_opr_notificacion(jid: str, mensaje: str) -> bool:
+    """Envía notificación por OPR Gateway (segundo Baileys)."""
+    if '@' not in jid:
+        jid = f"{jid}@s.whatsapp.net"
+    
+    try:
+        r = requests.post(
+            "http://localhost:9001/enviar",
+            json={"jid": jid, "mensaje": mensaje},
+            timeout=15
+        )
+        return r.status_code == 200
+    except Exception as e:
+        print(f"❌ Error OPR Gateway: {e}")
         return False

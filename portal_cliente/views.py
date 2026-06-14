@@ -460,24 +460,51 @@ def webhook_mia_documento(request):
         archivo = request.FILES.get('archivo')
         if not archivo or not jid:
             return JsonResponse({'error': 'Missing file or jid'}, status=400)
-        import tempfile
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp:
-            for chunk in archivo.chunks():
-                tmp.write(chunk)
-            tmp_path = tmp.name
+        
+        # GUARDAR ARCHIVO PERMANENTEMENTE antes de procesar
+        import os
+        from django.core.files.storage import default_storage
+        from django.conf import settings
+        
+        # Guardar en MEDIA_ROOT/mia_uploads/ para que persista
+        upload_path = f'mia_uploads/{nombre_documento}'
+        ruta_permanente = default_storage.save(upload_path, archivo)
+        ruta_completa = os.path.join(settings.MEDIA_ROOT, ruta_permanente)
+        
         class ArchivoProxy:
             def __init__(self, path):
                 self.path = path
                 self.name = os.path.basename(path)
             def __str__(self):
                 return self.path
+        
         class DocObj:
             def __init__(self, nombre, path):
                 self.nombre_documento = nombre
                 self.archivo = ArchivoProxy(path)
-        doc_obj = DocObj(nombre_documento, tmp_path)
+        
+        doc_obj = DocObj(nombre_documento, ruta_completa)
+        
+        # Procesar en background (el archivo ya está guardado permanentemente)
         import threading
-        threading.Thread(target=procesar_input_mia, kwargs={"documento_obj": doc_obj, "numero_whatsapp": jid.split('@')[0], "jid_remitente": jid}, daemon=True).start()
+        def procesar_y_limpiar():
+            try:
+                procesar_input_mia(documento_obj=doc_obj, numero_whatsapp=jid.split('@')[0], jid_remitente=jid)
+            finally:
+                # Limpiar después de procesar
+                if os.path.exists(ruta_completa):
+                    try:
+                        os.unlink(ruta_completa)
+                        # También limpiar de default_storage si existe
+                        if default_storage.exists(ruta_permanente):
+                            default_storage.delete(ruta_permanente)
+                    except:
+                        pass
+        
+        threading.Thread(target=procesar_y_limpiar, daemon=True).start()
         return JsonResponse({'status': 'processing'})
+        
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return JsonResponse({'error': str(e)}, status=500)

@@ -46,6 +46,7 @@ def registrar_naviera(request):
         # nombre_buque ya no es obligatorio aquí según tu nueva lógica de flota
         contacto = request.POST.get('contacto_principal')
         correo = request.POST.get('correo_electronico')
+        telefono = request.POST.get('telefono_contacto', '')
         privacidad = request.POST.get('aceptar_privacidad')
 
         # 1. Validación de Captcha con Score (INTACTO)
@@ -72,7 +73,8 @@ def registrar_naviera(request):
                     user=user,
                     nombre_empresa=nombre_empresa,
                     contacto_principal=contacto,
-                    correo_electronico=correo
+                    correo_electronico=correo,
+                    telefono_contacto=telefono  # NUEVO CAMPO
                 )
                 
                 # 4. Envío de correo (Simplificado para la Empresa)

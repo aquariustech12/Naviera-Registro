@@ -1,4 +1,4 @@
-# portal_cliente/mia_core.py
+# portal_cliente/mia_core.py — VERSIÓN ESTABLE
 import json
 from typing import Optional
 
@@ -13,10 +13,6 @@ from .mia_herramientas import (
 )
 from .mia_documentos import herramienta_analizar_documento
 
-
-# ============================================================================
-# MAPA ESTRUCTURAL DEL CÓDIGO PBIP - Contexto para el LLM
-# ============================================================================
 
 MAPA_PBIP = """ESTRUCTURA DEL CÓDIGO PBIP - MAPA DE CONSULTA:
 
@@ -73,9 +69,7 @@ REGLA DE ORO PARA CONSULTAS:
 def procesar_input_mia(texto_usuario=None, documento_obj=None, numero_whatsapp=None, jid_remitente=None):
     """
     ÚNICO punto de entrada para MIA.
-    Desde views.py (portal), webhook (WhatsApp), o scheduler (cron).
     """
-
     # 1. MEMORIA
     numero = numero_whatsapp or (jid_remitente.split('@')[0] if jid_remitente else "unknown")
     contexto = obtener_contexto(numero) if numero else []
@@ -83,19 +77,28 @@ def procesar_input_mia(texto_usuario=None, documento_obj=None, numero_whatsapp=N
     # 2. CLASIFICAR
     if documento_obj:
         intencion = "ANALISIS_DOCUMENTO"
-        entidades = {"documento": documento_obj.nombre_documento}
+        entidades = {"documento": getattr(documento_obj, 'nombre_documento', 'unknown')}
     else:
         intencion, entidades = _clasificar_intencion(texto_usuario or "", contexto)
 
     # 3. EJECUTAR
+    respuesta = None
     if intencion == "ANALISIS_DOCUMENTO":
-        try:
-            respuesta = herramienta_analizar_documento(documento_obj, jid_remitente)
-        except Exception as e:
-            print(f"ERROR en analisis documento: {e}")
-            import traceback
-            print(traceback.format_exc())
-            respuesta = "❌ Error analizando el documento. Revisa los logs."
+        if documento_obj is None:
+            respuesta = _modo_conversacion(
+                "El usuario mencionó documentos pero no adjuntó ninguno. "
+                "Responde amablemente pidiendo que adjunte el archivo.", 
+                contexto
+            )
+        else:
+            try:
+                herramienta_analizar_documento(documento_obj, jid_remitente)
+                respuesta = None  # Ya notificó internamente
+            except Exception as e:
+                print(f"ERROR en analisis documento: {e}")
+                import traceback
+                traceback.print_exc()
+                respuesta = "❌ Error analizando el documento. Revisa los logs."
 
     elif intencion == "CONSULTA_NORMATIVA":
         respuesta = _modo_consulta_pbip(texto_usuario, entidades, contexto)
@@ -110,27 +113,27 @@ def procesar_input_mia(texto_usuario=None, documento_obj=None, numero_whatsapp=N
         respuesta = _modo_conversacion(texto_usuario, contexto)
 
     # 4. GUARDAR (solo para interacciones de texto, no documentos)
-    if numero and texto_usuario:
-        guardar_mensaje(numero, "user", texto_usuario, intencion, entidades)
-        if respuesta:
+    if numero and texto_usuario and respuesta:
+        try:
+            guardar_mensaje(numero, "user", texto_usuario, intencion, entidades)
             guardar_mensaje(numero, "mia", respuesta, intencion, entidades)
+        except Exception as e:
+            print(f"ERROR guardando mensaje: {e}")
 
     return respuesta
 
 
 def _clasificar_intencion(texto: str, contexto: list):
     """
-    Clasificador híbrido: keywords rápidas + LLM para ambigüedades.
-    Devuelve: (intencion_str, entidades_dict)
+    Clasificador híbrido. NUNCA devuelve ANALISIS_DOCUMENTO sin documento real.
     """
     texto_lower = texto.lower().strip()
     entidades = {}
 
-    # --- REGLAS RÁPIDAS (90% de casos) ---
-
-    # Documentos
-    if any(k in texto_lower for k in ["documento", "pdf", "archivo", "analiza", "revisa esto", "subí", "subi"]):
-        return "ANALISIS_DOCUMENTO", entidades
+    # DOCUMENTOS: Solo acciones explícitas de subir/analizar archivo
+    doc_action_keywords = ["pdf", "archivo", "analiza", "revisa esto", "subí", "subi", "escaneo", "imagen", "adjunto", "envié", "envie"]
+    if any(k in texto_lower for k in doc_action_keywords):
+        return "CONVERSACION_GENERAL", entidades
 
     # Normativa PBIP
     pbip_keywords = ["pbip", "código", "codigo", "normativa", "artículo", "articulo", 
@@ -147,7 +150,8 @@ def _clasificar_intencion(texto: str, contexto: list):
         return "REPORTE_GLOBAL", entidades
 
     estado_keywords = ["cómo va", "como va", "progreso", "porcentaje", "falta", 
-                       "completado", "expediente", "avance"]
+                       "completado", "expediente", "avance", "qué falta", "que falta",
+                       "faltan documentos", "aun faltan", "aún faltan"]
     if any(k in texto_lower for k in estado_keywords):
         palabras = texto_lower.split()
         for i, palabra in enumerate(palabras):
@@ -161,11 +165,11 @@ def _clasificar_intencion(texto: str, contexto: list):
     if any(k in texto_lower for k in ["recordar", "recordatorio", "alerta", "notificar", "avisar"]):
         return "RECORDATORIO", entidades
 
-    # Ayuda / Comandos
+    # Ayuda
     if any(k in texto_lower for k in ["ayuda", "help", "comandos", "qué puedes hacer", "que puedes hacer"]):
         return "AYUDA", entidades
 
-    # --- FALLBACK: LLM para casos ambiguos ---
+    # FALLBACK: LLM
     return _clasificar_con_llm(texto, contexto)
 
 
@@ -174,9 +178,15 @@ def _clasificar_con_llm(texto: str, contexto: list):
 
 CATEGORÍAS:
 - CONSULTA_NORMATIVA: Pregunta sobre PBIP, OMI, regulaciones, normas marítimas, certificados, tipos de buques
-- CONSULTA_ESTADO: Pregunta sobre navieras, buques, progreso, expedientes
-- CONVERSACION_GENERAL: Saludos, despedidas, preguntas sobre MIA, chit-chat
+- CONSULTA_ESTADO: Pregunta sobre navieras, buques, progreso, expedientes, documentos faltantes
+- CONVERSACION_GENERAL: Saludos, despedidas, preguntas sobre MIA, chit-chat, frases cortas
 - RECORDATORIO: Solicita alertas, recordatorios, notificaciones
+- AYUDA: Pide menú de opciones o comandos disponibles
+
+REGLAS IMPORTANTES:
+- "faltan documentos" o "qué falta" → CONSULTA_ESTADO (no es análisis de documento)
+- "subí un archivo" o "revisa este pdf" → CONVERSACION_GENERAL (el sistema detecta documentos por separado)
+- Saludos simples → CONVERSACION_GENERAL
 
 CONTEXTO RECIENTE:
 {json.dumps(contexto[-3:], ensure_ascii=False, indent=2)}
@@ -201,13 +211,11 @@ Responde SOLO con un JSON:
 def _modo_consulta_pbip(pregunta: str, entidades: dict, contexto: list) -> str:
     tema = entidades.get("tema_pbip") or pregunta
 
-    # Búsqueda híbrida con motor mejorado
     resultados = buscar_pbip_hibrido(tema, k=5, estrategia='auto')
 
     if not resultados:
         return f"🤖 *MIA*\n\nNo encontré información sobre '{tema}' en el código PBIP.\n\n💡 *Sugerencia:* Intenta con términos más específicos como \"control de acceso\", \"PFSO\", \"evaluación de riesgos\", etc."
 
-    # Formatear artículos recuperados
     articulos_texto = []
     for r in resultados:
         meta = r['metadata']
@@ -217,7 +225,6 @@ def _modo_consulta_pbip(pregunta: str, entidades: dict, contexto: list) -> str:
 
     articulos_str = "\n---\n".join(articulos_texto)
 
-    # Generar respuesta con LLM + mapa estructural
     prompt = f"""{MAPA_PBIP}
 
 ARTÍCULOS RECUPERADOS DE LA BASE DE DATOS:
@@ -252,14 +259,13 @@ FORMATO DE RESPUESTA:
 📌 *Referencias específicas:*
 [citas exactas de artículos con números de párrafo si aplica]"""
 
-    return consultar_ollama(prompt, temperature=0.2)
+    return consultar_ollama(prompt, temperature=0.2, num_ctx=16384)
 
 
 def _modo_consulta_estado(pregunta: str, entidades: dict, contexto: list) -> str:
     tipo = entidades.get("tipo_busqueda")
     termino = entidades.get("termino")
 
-    # Si no extrajo entidades, intentar del contexto previo
     if not tipo and contexto:
         for msg in reversed(contexto):
             meta = msg.get("metadatos", {})
@@ -271,7 +277,6 @@ def _modo_consulta_estado(pregunta: str, entidades: dict, contexto: list) -> str
             if tipo:
                 break
 
-    # Ejecutar consulta
     if tipo == "omi" and termino:
         datos = herramienta_consultar_estado(omi=termino.strip())
     elif tipo == "buque" and termino:
@@ -279,10 +284,8 @@ def _modo_consulta_estado(pregunta: str, entidades: dict, contexto: list) -> str
     elif tipo == "naviera" and termino:
         datos = herramienta_consultar_estado(naviera_nombre=termino.strip())
     else:
-        # Sin entidades claras, reporte global
         datos = herramienta_reporte_global()
 
-    # Generar respuesta natural con LLM
     prompt = f"""Eres MIA, asistente de auditoría. El auditor pregunta sobre estado de expedientes.
 
 DATOS DEL SISTEMA:
@@ -300,7 +303,7 @@ FORMATO:
 💡 *Análisis:*
 [interpretación breve si aplica]"""
 
-    return consultar_ollama(prompt, temperature=0.3)
+    return consultar_ollama(prompt, temperature=0.3, num_ctx=4096)
 
 
 def _modo_conversacion(texto: str, contexto: list) -> str:
@@ -326,4 +329,4 @@ FORMATO:
 
 Solo añade el menú de opciones si el usuario preguntó explícitamente qué puedes hacer o parece perdido."""
 
-    return consultar_ollama(prompt, temperature=0.4)
+    return consultar_ollama(prompt, temperature=0.4, num_ctx=4096)

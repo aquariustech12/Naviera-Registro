@@ -6,6 +6,7 @@ class Naviera(models.Model):
     nombre_empresa = models.CharField(max_length=255)
     contacto_principal = models.CharField(max_length=255)
     correo_electronico = models.EmailField()
+    telefono_contacto = models.CharField(max_length=20, blank=True, null=True)  # NUEVO
     alta_completa = models.BooleanField(default=False)
     fecha_alta_completa = models.DateTimeField(null=True, blank=True)
 
