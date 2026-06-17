@@ -124,15 +124,32 @@ def procesar_input_mia(texto_usuario=None, documento_obj=None, numero_whatsapp=N
 
 
 def _clasificar_intencion(texto: str, contexto: list):
-    """
-    Clasificador híbrido. NUNCA devuelve ANALISIS_DOCUMENTO sin documento real.
-    """
     texto_lower = texto.lower().strip()
     entidades = {}
 
-    # DOCUMENTOS: Solo acciones explícitas de subir/analizar archivo
-    doc_action_keywords = ["pdf", "archivo", "analiza", "revisa esto", "subí", "subi", "escaneo", "imagen", "adjunto", "envié", "envie"]
-    if any(k in texto_lower for k in doc_action_keywords):
+    # === DETECTAR AFIRMACIONES/RECORDATORIOS PRIMERO ===
+    # Si el mensaje NO tiene signo de interrogación y NO empieza con palabras interrogativas
+    # y contiene fechas futuras o verbos de obligación → es un recordatorio/afirmación
+    
+    palabras_interrogativas = ['qué', 'que', 'cómo', 'como', 'cuál', 'cual', 'cuándo', 'cuando',
+                                'dónde', 'donde', 'por qué', 'porque', 'quién', 'quien',
+                                'cuántos', 'cuantos', 'cuántas', 'cuantas']
+    
+    es_pregunta = ('?' in texto or 
+                   any(p in texto_lower for p in palabras_interrogativas))
+    
+    # Verbos de obligación/acción futura + fechas
+    verbos_accion = ['debería', 'debo', 'tengo que', 'necesito', 'voy a', 'seguir',
+                     'continuar', 'reanudar', 'retomar', 'avanzar', 'procesar']
+    fechas_futuras = ['mañana', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes',
+                      'próxima semana', 'la siguiente', 'en breve', 'hoy']
+    
+    es_afirmacion_accion = (not es_pregunta and 
+                          any(v in texto_lower for v in verbos_accion) and
+                          any(f in texto_lower for f in fechas_futuras))
+    
+    if es_afirmacion_accion:
+        entidades["recordatorio"] = texto
         return "CONVERSACION_GENERAL", entidades
 
     # Normativa PBIP

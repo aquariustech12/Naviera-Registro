@@ -112,31 +112,23 @@
                                     </div>
 
                                     <div class="mt-3">
-                                        <h6 class="p-2" style="background: #eee; font-weight: bold;">COTIZACIÓN</h6>
-                                        <div class="d-flex justify-content-between align-items-center p-2 border-bottom">
-                                            <div>
-                                                <span>Formulario de Cotización (FGMP-FC-01)</span>
-                                                {% if "Formulario de Cotización FGMP-FC-01" in buque.docs_listos %}
-                                                <span class="badge badge-cargado ms-2">Cargado</span>
-                                                {% else %}
-                                                <span class="badge badge-pendiente ms-2">Pendiente</span>
-                                                {% endif %}
-                                            </div>
-                                            <div>
-                                                <a href="{% static 'formulario_cotizacion.pdf' %}" class="btn btn-sm btn-dark me-2" download>
-                                                <i class="fas fa-download"></i> Descargar
-                                                </a>
-                                                <form action="{% url 'subir_archivo_pre_servicio' buque.id %}" method="POST" enctype="multipart/form-data" style="display: inline;">
-                                                    {% csrf_token %}
-                                                    <input type="hidden" name="categoria" value="COTIZACION">
-                                                    <input type="hidden" name="nombre_documento" value="Formulario de Cotización FGMP-FC-01">
-                                                    <input type="file" name="archivo_documento" accept=".pdf" required style="font-size: 0.8em;">
-                                                    <button type="submit" class="btn btn-sm btn-primary">
-                                                    <i class="fas fa-upload"></i> Subir
-                                                    </button>
-                                                </form>
-                                            </div>
-                                        </div>
+    <h6 class="p-2" style="background: #eee; font-weight: bold;">COTIZACIÓN</h6>
+    <div class="d-flex justify-content-between align-items-center p-2 border-bottom">
+        <div>
+            <span>Formulario de Cotización (FGMP-FC-01)</span>
+            {% if "Formulario de Cotización FGMP-FC-01" in buque.docs_listos %}
+            <span class="badge badge-cargado ms-2">Cargado</span>
+            {% else %}
+            <span class="badge badge-pendiente ms-2">Pendiente</span>
+            {% endif %}
+        </div>
+        <div>
+            <a href="{% url 'registrar_formulario_fc01' %}" class="btn btn-sm text-white fw-bold px-3" style="background-color: #272B60;">
+                <i class="fas fa-edit me-1"></i> Llenar Formulario Digital
+            </a>
+        </div>
+    </div>
+</div>
                                         
                                         {% if buque.propuesta_economica %}
                                         <div class="alert alert-success mt-2 mb-0 py-2 d-flex justify-content-between align-items-center" style="font-size: 0.9rem;">
@@ -165,29 +157,32 @@
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    {% for punto in puntos_pbip %}
-                                                    <tr>
-                                                        <td>{{ punto.numero }}</td>
-                                                        <td>{{ punto.descripcion }}</td>
-                                                        <td class="text-center">
-                                                            {% if punto.descripcion in buque.docs_listos %}
-                                                            <span class="badge badge-cargado">Cargado</span>
-                                                            {% else %}
-                                                            <span class="badge badge-pendiente">Pendiente</span>
-                                                            {% endif %}
-                                                        </td>
-                                                        <td>
-                                                            <form action="{% url 'subir_archivo_pre_servicio' buque.id %}" method="POST" enctype="multipart/form-data" class="d-flex">
-                                                                {% csrf_token %}
-                                                                <input type="hidden" name="categoria" value="DOCUMENTAL">
-                                                                <input type="hidden" name="nombre_documento" value="{{ punto.descripcion }}">
-                                                                <input type="file" name="archivo_documento" class="form-control form-control-sm me-1" required>
-                                                                <button type="submit" class="btn btn-primary btn-sm">Subir</button>
-                                                            </form>
-                                                        </td>
-                                                    </tr>
-                                                    {% endfor %}
-                                                </tbody>
+    {% for punto in puntos_pbip %}
+    <tr>
+        <td>{{ punto.numero }}</td>
+        <td>{{ punto.descripcion }}</td>
+        <td class="text-center">
+            {% if punto.descripcion in buque.docs_listos %}
+            <span class="badge badge-cargado">Cargado</span>
+            {% else %}
+            <span class="badge badge-pendiente">Pendiente</span>
+            {% endif %}
+        </td>
+        <td>
+            <form action="{% url 'portal_cliente' %}" method="POST" enctype="multipart/form-data" class="d-flex">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="subir_documento">
+                <input type="hidden" name="buque_id" value="{{ buque.id }}">
+                <input type="hidden" name="categoria" value="DOCUMENTAL">
+                <input type="hidden" name="nombre_documento" value="{{ punto.descripcion }}">
+                
+                <input type="file" name="archivo_documento" class="form-control form-control-sm me-1" required>
+                <button type="submit" class="btn btn-primary btn-sm">Subir</button>
+            </form>
+        </td>
+    </tr>
+    {% endfor %}
+</tbody>
                                             </table>
                                         </div>
                                     </div>

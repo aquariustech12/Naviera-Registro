@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Formulario de Cotización – FGMP-FC-01</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: Arial, sans-serif;
+  font-size: 11px;
+  background: #d4dde8;
+  display: flex;
+  justify-content: center;
+  padding: 30px 10px 60px;
+}
+
+.page { background: #fff; width: 720px; }
+
+/* ── HEADER ── */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 16px 20px 8px;
+}
+
+.logo-wrap {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.logo-img {
+  width: 78px;
+  height: auto;
+  display: block;
+}
+
+.logo-text-block {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding-bottom: 2px;
+}
+
+.logo-text {
+  font-size: 10px;
+  color: #272B60;
+  font-weight: bold;
+  line-height: 1.2;
+  letter-spacing: 0.2px;
+}
+
+.logo-sub {
+  font-size: 8px;
+  color: #1880C0;
+  font-weight: normal;
+  font-style: italic;
+  display: block;
+  margin-top: 1px;
+}
+
+.header-company {
+  font-size: 7.5px;
+  color: #272B60;
+  font-weight: bold;
+  margin-top: 4px;
+  letter-spacing: 0.1px;
+}
+
+.header-center {
+  flex: 1;
+  text-align: center;
+  padding: 4px 16px 0;
+}
+
+.header-center h1 {
+  font-size: 21px;
+  font-weight: bold;
+  color: #000;
+  letter-spacing: 0.3px;
+}
+
+.header-right {
+  font-size: 9.5px;
+  line-height: 1.85;
+  text-align: left;
+  white-space: nowrap;
+  color: #000;
+}
+
+.header-divider {
+  height: 2px;
+  background: #272B60;
+  margin: 8px 0 0;
+}
+
+/* ── FORM TABLE ── */
+.form-table {
+  width: 100%;
+  border-collapse: collapse;
+  border-left: 1px solid #8fa3bf;
+  border-right: 1px solid #8fa3bf;
+}
+
+.form-table td {
+  border: 1px solid #8fa3bf;
+  vertical-align: middle;
+  font-size: 10.5px;
+  padding: 0;
+}
+
+/* Section header rows */
+.section-hdr td {
+  background: #1880C0;
+  color: #fff;
+  font-weight: bold;
+  font-size: 11px;
+  padding: 5px 10px;
+  letter-spacing: 0.3px;
+  border-color: #1880C0;
+}
+
+/* Label cells */
+.lbl {
+  background: #272B60;
+  color: #fff;
+  font-size: 10px;
+  padding: 6px 10px;
+  width: 210px;
+  min-width: 210px;
+  vertical-align: middle;
+  line-height: 1.4;
+}
+
+.lbl-req::after {
+  content: " *";
+  color: #1880C0;
+  font-weight: bold;
+}
+
+/* Value cells */
+.val {
+  background: #fff;
+  padding: 5px 8px;
+  vertical-align: middle;
+}
+
+/* readonly / auto-filled field */
+.val-auto {
+  background: #f0f5fb;
+  padding: 5px 8px;
+  vertical-align: middle;
+  color: #272B60;
+  font-style: italic;
+  font-size: 10px;
+}
+
+/* Inputs */
+input[type="text"],
+input[type="email"],
+input[type="tel"],
+textarea {
+  width: 100%;
+  border: none;
+  outline: none;
+  font-size: 10.5px;
+  font-family: Arial, sans-serif;
+  background: transparent;
+  padding: 1px 2px;
+  color: #000;
+}
+
+input[readonly] {
+  color: #1880C0;
+  font-style: italic;
+  cursor: default;
+}
+
+textarea {
+  resize: vertical;
+  min-height: 30px;
+  display: block;
+}
+
+/* Sub-label */
+.sub-lbl {
+  font-size: 7.5px;
+  color: #666;
+  margin-top: 1px;
+}
+
+/* ── DOMICILIO FISCAL ── */
+.dom-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.dom-cell {
+  padding: 5px 8px;
+  border-bottom: 1px solid #8fa3bf;
+}
+
+.dom-cell:nth-child(1) { border-right: 1px solid #8fa3bf; }
+.dom-cell:nth-child(3) { border-right: 1px solid #8fa3bf; border-bottom: none; }
+.dom-cell:nth-child(4) { border-bottom: none; }
+
+.cp-tel { display: flex; }
+
+.cp-block {
+  width: 80px;
+  padding-right: 10px;
+  border-right: 1px solid #8fa3bf;
+  margin-right: 10px;
+}
+
+.tel-block { flex: 1; }
+
+/* ── CONTACT rows ── */
+.contact-val { padding: 0; }
+
+.contact-row {
+  display: flex;
+  border-bottom: 1px solid #8fa3bf;
+}
+
+.contact-row:last-child { border-bottom: none; }
+
+.c-name { flex: 2;   padding: 5px 8px; border-right: 1px solid #8fa3bf; }
+.c-tel  { flex: 1.2; padding: 5px 8px; border-right: 1px solid #8fa3bf; }
+.c-email{ flex: 2;   padding: 5px 8px; }
+
+/* ── REQUERIMIENTOS ── */
+.req-val { padding: 6px 10px; vertical-align: middle; }
+
+/* ── VALIDATION ERRORS ── */
+.err { border: 1.5px solid #c0392b !important; background: #fff5f5 !important; }
+
+.error-msg {
+  display: none;
+  color: #c0392b;
+  font-size: 9px;
+  margin-top: 2px;
+}
+
+/* ── FOOTER WAVE ── */
+.footer-wave { display: block; width: 100%; margin-top: 16px; }
+
+.footer-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 10px 20px 14px;
+  font-size: 8.5px;
+  color: #333;
+  line-height: 1.7;
+}
+
+.footer-content a { color: #1880C0; font-size: 8.5px; text-decoration: underline; }
+
+/* ── BUTTONS ── */
+.btn-row {
+  display: flex;
+  padding: 0;
+  justify-content: space-between;
+  gap: 0;
+}
+
+.btn {
+  flex: 1;
+  padding: 10px 0;
+  font-size: 12px;
+  font-weight: bold;
+  border: none;
+  cursor: pointer;
+  letter-spacing: 0.3px;
+  transition: opacity .15s;
+}
+
+.btn-cancel { background: #1880C0; color: #fff; }
+.btn-submit { background: #272B60; color: #fff; }
+.btn:hover  { opacity: 0.85; }
+
+.btn-gap { width: 280px; background: #fff; }
+
+/* ── TOAST ── */
+#toast {
+  display: none;
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #272B60;
+  color: #fff;
+  padding: 10px 24px;
+  border-radius: 4px;
+  font-size: 12px;
+  z-index: 999;
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  {% load static %}
+
+<div class="header">
+  <div class="header-left">
+    <img src="{% static 'images/LOGO-GMP-02.png' %}" alt="Global Maritime Protection" class="logo-img">
+    <div class="header-company">EISS ENTERPRISE INTEGRAL SECURITY ADVISORS S.A DE C.V</div>
+  </div>
+
+  <div class="header-center">
+    <h1>FORMULARIO DE<br>COTIZACIÓN</h1>
+  </div>
+
+  <div class="header-right">
+    <div>EDICIÓN: 02</div>
+    <div>FECHA DE EMISIÓN: 06/10/21</div>
+    <div>CÓDIGO: FGMP-FC-01</div>
+    <div>PÁGINA: Página 1 de 1</div>
+  </div>
+</div>
+
+  <!-- ══ FORM ══ -->
+  <form id="djangoForm" method="POST" action="{% url 'registrar_formulario_fc01' %}">
+    {% csrf_token %}
+    
+    <table class="form-table" id="mainForm">
+
+    <!-- ─ SECCIÓN 1 ─ -->
+    <tr class="section-hdr"><td colspan="2">SERVICIO SOLICITADO Y DATOS.</td></tr>
+
+    <tr>
+      <td class="lbl lbl-req">Servicios solicitados</td>
+      <td class="val">
+        <input type="text" id="servicios" name="servicios_solicitados" required>
+        <div class="error-msg" id="err-servicios">Campo obligatorio</div>
+      </td>
+    </tr>
+    <tr>
+      <td class="lbl lbl-req">Seleccionar Buque de la Flota</td>
+      <td class="val">
+        <select id="buque_selector" name="buque_id" style="width: 100%; border: none; outline: none; font-size: 10.5px; font-family: Arial, sans-serif;" required onchange="actualizarDatosBuque()">
+          <option value="" disabled selected>-- Selecciona un buque de tu flota --</option>
+          {% for b in buques %}
+            <option value="{{ b.id }}" data-nombre="{{ b.nombre_buque|upper }}" data-omi="{{ b.OMI|default:'S/N' }}">{{ b.nombre_buque|upper }}</option>
+          {% endfor %}
+        </select>
+      </td>
+    </tr>
+    <tr>
+      <td class="lbl lbl-req">Nombre y tipo de artefacto naval o instalación portuaria y No. OMI</td>
+      <td class="val-auto">
+        <input type="text" id="artefacto" name="artefacto" readonly placeholder="Se cargará automáticamente al seleccionar el barco arriba...">
+        <input type="hidden" id="tipo_buque" name="tipo_buque" value="GENERAL">
+        <div class="sub-lbl">Cargado automáticamente del sistema</div>
+      </td>
+    </tr>
+
+    <!-- ─ SECCIÓN 2 ─ -->
+    <tr class="section-hdr"><td colspan="2">DATOS DE LA COMPAÑÍA SOLICITANTE</td></tr>
+
+    <tr>
+      <td class="lbl lbl-req">Razón Social y Giro de la compañía y/o buque.</td>
+      <td class="val">
+        <input type="text" id="razon_social" name="razon_social">
+        <div class="error-msg" id="err-razon_social">Campo obligatorio</div>
+      </td>
+    </tr>
+    <tr>
+      <td class="lbl lbl-req">RFC de la compañía.</td>
+      <td class="val">
+        <input type="text" id="rfc" name="rfc">
+        <div class="error-msg" id="err-rfc">Campo obligatorio</div>
+      </td>
+    </tr>
+
+    <!-- Domicilio Fiscal -->
+    <tr>
+      <td class="lbl lbl-req" style="vertical-align:top;padding-top:8px">Domicilio Fiscal</td>
+      <td style="padding:0;background:#fff">
+        <div class="dom-grid">
+          <div class="dom-cell">
+            <input type="text" id="calle" name="calle">
+            <div class="sub-lbl">Calle y Número</div>
+            <div class="error-msg" id="err-calle">Campo obligatorio</div>
+          </div>
+          <div class="dom-cell">
+            <input type="text" id="ciudad" name="ciudad">
+            <div class="sub-lbl">Ciudad y Estado</div>
+            <div class="error-msg" id="err-ciudad">Campo obligatorio</div>
+          </div>
+          <div class="dom-cell">
+            <input type="text" id="municipio" name="municipio">
+            <div class="sub-lbl">Municipio o Alcaldía</div>
+            <div class="error-msg" id="err-municipio">Campo obligatorio</div>
+          </div>
+          <div class="dom-cell">
+            <div class="cp-tel">
+              <div class="cp-block">
+                <input type="text" id="cp" name="cp">
+                <div class="sub-lbl">C.P.</div>
+                <div class="error-msg" id="err-cp">Obligatorio</div>
+              </div>
+              <div class="tel-block">
+                <input type="tel" id="tel_fiscal" name="tel_fiscal">
+                <div class="sub-lbl">Teléfono</div>
+                <div class="error-msg" id="err-tel_fiscal">Obligatorio</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </td>
+    </tr>
+
+    <!-- Localización -->
+    <tr>
+      <td class="lbl lbl-req">Localización del artefacto naval o Instalación Portuaria.</td>
+      <td style="padding:0;background:#fff">
+        <div style="padding:5px 8px">
+          <input type="text" id="localizacion" name="localizacion">
+          <div class="sub-lbl">Puerto, Ciudad y Estado</div>
+          <div class="error-msg" id="err-localizacion">Campo obligatorio</div>
+        </div>
+      </td>
+    </tr>
+
+    <!-- Representante legal -->
+    <tr>
+      <td class="lbl lbl-req">Representante legal / Director de la empresa</td>
+      <td class="contact-val">
+        <div class="contact-row">
+          <div class="c-name">
+            <input type="text" id="rep_nombre" name="rep_nombre">
+            <div class="sub-lbl">Nombre</div>
+            <div class="error-msg" id="err-rep_nombre">Obligatorio</div>
+          </div>
+          <div class="c-tel">
+            <input type="tel" id="rep_tel" name="rep_tel">
+            <div class="sub-lbl">Teléfono</div>
+            <div class="error-msg" id="err-rep_tel">Obligatorio</div>
+          </div>
+          <div class="c-email">
+            <input type="email" id="rep_email" name="rep_email">
+            <div class="sub-lbl">E-mail</div>
+            <div class="error-msg" id="err-rep_email">Obligatorio</div>
+          </div>
+        </div>
+      </td>
+    </tr>
+
+    <!-- OPIP -->
+    <tr>
+      <td class="lbl lbl-req">OPIP</td>
+      <td class="contact-val">
+        <div class="contact-row">
+          <div class="c-name">
+            <input type="text" id="opip_nombre" name="opip_nombre">
+            <div class="sub-lbl">Nombre</div>
+            <div class="error-msg" id="err-opip_nombre">Obligatorio</div>
+          </div>
+          <div class="c-tel">
+            <input type="tel" id="opip_tel" name="opip_tel">
+            <div class="sub-lbl">Teléfono</div>
+            <div class="error-msg" id="err-opip_tel">Obligatorio</div>
+          </div>
+          <div class="c-email">
+            <input type="email" id="opip_email" name="opip_email">
+            <div class="sub-lbl">E-mail</div>
+            <div class="error-msg" id="err-opip_email">Obligatorio</div>
+          </div>
+        </div>
+      </td>
+    </tr>
+
+    <!-- OCPM -->
+    <tr>
+      <td class="lbl lbl-req">OCPM</td>
+      <td class="contact-val">
+        <div class="contact-row">
+          <div class="c-name">
+            <input type="text" id="ocpm_nombre" name="ocpm_nombre">
+            <div class="sub-lbl">Nombre</div>
+            <div class="error-msg" id="err-ocpm_nombre">Obligatorio</div>
+          </div>
+          <div class="c-tel">
+            <input type="tel" id="ocpm_tel" name="ocpm_tel">
+            <div class="sub-lbl">Teléfono</div>
+            <div class="error-msg" id="err-ocpm_tel">Obligatorio</div>
+          </div>
+          <div class="c-email">
+            <input type="email" id="ocpm_email" name="ocpm_email">
+            <div class="sub-lbl">E-mail</div>
+            <div class="error-msg" id="err-ocpm_email">Obligatorio</div>
+          </div>
+        </div>
+      </td>
+    </tr>
+
+    <!-- OPB -->
+    <tr>
+      <td class="lbl lbl-req">OPB</td>
+      <td class="contact-val">
+        <div class="contact-row">
+          <div class="c-name">
+            <input type="text" id="opb_nombre" name="opb_nombre">
+            <div class="sub-lbl">Nombre</div>
+            <div class="error-msg" id="err-opb_nombre">Obligatorio</div>
+          </div>
+          <div class="c-tel">
+            <input type="tel" id="opb_tel" name="opb_tel">
+            <div class="sub-lbl">Teléfono</div>
+            <div class="error-msg" id="err-opb_tel">Obligatorio</div>
+          </div>
+          <div class="c-email">
+            <input type="email" id="opb_email" name="opb_email">
+            <div class="sub-lbl">E-mail</div>
+            <div class="error-msg" id="err-opb_email">Obligatorio</div>
+          </div>
+        </div>
+      </td>
+    </tr>
+
+    <!-- Capitán -->
+    <tr>
+      <td class="lbl lbl-req">Capitán del buque.</td>
+      <td class="contact-val">
+        <div class="contact-row">
+          <div class="c-name">
+            <input type="text" id="capitan_nombre" name="capitan_nombre">
+            <div class="sub-lbl">Nombre</div>
+            <div class="error-msg" id="err-capitan_nombre">Obligatorio</div>
+          </div>
+          <div class="c-tel">
+            <input type="tel" id="capitan_tel" name="capitan_tel">
+            <div class="sub-lbl">Teléfono</div>
+            <div class="error-msg" id="err-capitan_tel">Obligatorio</div>
+          </div>
+          <div class="c-email">
+            <input type="email" id="capitan_email" name="capitan_email">
+            <div class="sub-lbl">E-mail</div>
+            <div class="error-msg" id="err-capitan_email">Obligatorio</div>
+          </div>
+        </div>
+      </td>
+    </tr>
+
+    <!-- ─ SECCIÓN 3 ─ -->
+    <tr class="section-hdr"><td colspan="2">REQUERIMIENTOS DE INGRESO A LA EMBARACIÓN / INSTALACIÓN PORTUARIA.</td></tr>
+
+    <tr>
+      <td class="lbl lbl-req">Ropa y EPP.<br><span style="font-weight:normal;font-size:8.5px">(Indicar si requiere un color especifico).</span></td>
+      <td class="req-val">
+        <textarea id="ropa_epp" name="ropa_epp"></textarea>
+        <div class="error-msg" id="err-ropa_epp">Campo obligatorio</div>
+      </td>
+    </tr>
+    <tr>
+      <td class="lbl lbl-req">Documentación</td>
+      <td class="req-val">
+        <textarea id="documentacion" name="documentacion"></textarea>
+        <div class="error-msg" id="err-documentacion">Campo obligatorio</div>
+      </td>
+    </tr>
+    <tr>
+      <td class="lbl lbl-req">Ingreso de equipo de computo</td>
+      <td class="req-val">
+        <textarea id="equipo_computo" name="equipo_computo"></textarea>
+        <div class="error-msg" id="err-equipo_computo">Campo obligatorio</div>
+      </td>
+    </tr>
+    <tr>
+      <td class="lbl lbl-req">Protocolo Covid-19 u otros</td>
+      <td class="req-val">
+        <textarea id="covid" name="covid"></textarea>
+        <div class="error-msg" id="err-covid">Campo obligatorio</div>
+      </td>
+    </tr>
+
+  </table>
+
+  <!-- ══ FOOTER WAVE ══ -->
+  <svg viewBox="0 0 720 38" xmlns="http://www.w3.org/2000/svg" class="footer-wave">
+    <path d="M0 22 Q180 2 360 22 Q540 42 720 22 L720 38 L0 38 Z" fill="#1880C0" opacity=".35"/>
+    <path d="M0 28 Q180 10 360 28 Q540 46 720 28 L720 38 L0 38 Z" fill="#272B60" opacity=".20"/>
+  </svg>
+
+  <div class="footer-content">
+    <div>
+      <strong>Domicilio.</strong> Cerro Acasulco No. 6 Despacho G Col, Romero de Terreros, Coyoacan 04300 CDMX.<br>
+      &nbsp;Cel: 55 8107 3859<br>
+      Número de Registro OPR: <strong>DIGAPROCER-DPMP-OPR-08</strong>
+    </div>
+    <div style="text-align:right;padding-top:2px">
+      <a href="https://www.maritimeprotection.mx" target="_blank">www.maritimeprotection.mx</a>
+    </div>
+  </div>
+
+  <!-- ══ BUTTONS ══ -->
+  <div class="btn-row">
+    <button class="btn btn-cancel" type="button" onclick="cancelar()">Cancelar Trámite</button>
+    <div class="btn-gap"></div>
+    <button class="btn btn-submit" type="submit">Validar y Enviar a Auditoría</button>
+  </div>
+
+</form>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+// LISTA CORREGIDA: Solo dejamos los IDs reales que existen en el HTML
+const REQUIRED = [
+  'servicios', 'buque_selector',
+  'razon_social', 'rfc',
+  'calle', 'ciudad', 'municipio', 'cp', 'tel_fiscal',
+  'localizacion',
+  'rep_nombre', 'rep_tel', 'rep_email',
+  'capitan_nombre', 'capitan_tel', 'capitan_email',
+  'ropa_epp', 'documentacion', 'equipo_computo', 'covid'
+];
+
+function showToast(msg, color) {
+  const t = document.getElementById('toast');
+  if(t) {
+    t.textContent = msg;
+    t.style.background = color || '#272B60';
+    t.style.display = 'block';
+    setTimeout(() => { t.style.display = 'none'; }, 3200);
+  }
+}
+
+function actualizarDatosBuque() {
+    const selector = document.getElementById('buque_selector');
+    const inputArtefacto = document.getElementById('artefacto');
+    const selectedOption = selector.options[selector.selectedIndex];
+    
+    if (selectedOption && !selectedOption.disabled) {
+        const nombre = selectedOption.getAttribute('data-nombre');
+        const omi = selectedOption.getAttribute('data-omi');
+        inputArtefacto.value = `${nombre} (OMI: ${omi})`;
+    } else {
+        inputArtefacto.value = '';
+    }
+}
+
+document.getElementById('djangoForm').addEventListener('submit', function(e) {
+  let ok = true;
+
+  // Limpiar errores previos de forma segura
+  REQUIRED.forEach(id => {
+    const el = document.getElementById(id);
+    const err = document.getElementById('err-' + id);
+    if (el) el.classList.remove('err');
+    if (err) err.style.display = 'none';
+  });
+
+  // Validar únicamente los campos que sí existen
+  REQUIRED.forEach(id => {
+    const el = document.getElementById(id);
+    const err = document.getElementById('err-' + id);
+    if (!el) return; // Si algún ID no existe, se lo salta de forma segura sin romper el script
+    
+    const val = el.value.trim();
+
+    if (!val) {
+      el.classList.add('err');
+      if (err) err.style.display = 'block';
+      ok = false;
+    }
+    if (el.type === 'email' && val && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
+      el.classList.add('err');
+      if (err) { err.textContent = 'E-mail inválido'; err.style.display = 'block'; }
+      ok = false;
+    }
+  });
+
+  if (!ok) {
+    e.preventDefault(); // Cancela el envío si faltan datos reales
+    showToast('⚠ Por favor complete todos los campos obligatorios.', '#c0392b');
+    const first = document.querySelector('.err');
+    if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  } else {
+    showToast('✔ Enviando formulario a Django...', '#272B60');
+    // Aquí el formulario sigue su curso natural por POST
+  }
+});
+
+// Listener interactivo para quitar la alerta roja al escribir
+REQUIRED.forEach(id => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener('input', () => {
+    el.classList.remove('err');
+    const err = document.getElementById('err-' + id);
+    if (err) { err.style.display = 'none'; err.textContent = 'Campo obligatorio'; }
+  });
+});
+
+function cancelar() {
+  if (confirm('¿Desea cancelar el trámite? Los datos ingresados se perderán.')) {
+    window.location.href = "{% url 'portal_cliente' %}";
+  }
+}
+</script>
+</body>
+</html>

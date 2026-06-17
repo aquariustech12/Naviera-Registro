@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Propuesta Económica FGMP-PE-01</title>
+<style>
+@page {
+    size: letter;
+    margin: 0;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    font-family: Arial, sans-serif;
+    font-size: 10pt;
+    line-height: 1.4;
+    color: #000;
+}
+
+/* ========== PORTADA (PÁGINA 1) ========== */
+.portada {
+    width: 100%;
+    height: 100vh;
+    page-break-after: always;
+    position: relative;
+}
+
+.portada-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    height: 60%;
+    gap: 2px;
+}
+
+.portada-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    background: #272B60;
+}
+
+.portada-img:nth-child(1) { background: linear-gradient(135deg, #272B60 0%, #1880C0 100%); }
+.portada-img:nth-child(2) { background: linear-gradient(135deg, #1880C0 0%, #272B60 100%); }
+.portada-img:nth-child(3) { background: linear-gradient(135deg, #1880C0 0%, #272B60 100%); }
+.portada-img:nth-child(4) { background: linear-gradient(135deg, #272B60 0%, #1880C0 100%); }
+
+.portada-empresa {
+    text-align: center;
+    padding: 15px 0;
+    font-size: 14pt;
+    font-weight: bold;
+    color: #272B60;
+    letter-spacing: 1px;
+}
+
+.portada-logo-area {
+    text-align: center;
+    padding: 30px 0;
+}
+
+.portada-logo {
+    width: 200px;
+    height: auto;
+}
+
+.portada-titulo {
+    text-align: center;
+    font-size: 24pt;
+    font-weight: bold;
+    color: #272B60;
+    margin-top: 20px;
+    letter-spacing: 2px;
+}
+
+.portada-subtitulo {
+    text-align: center;
+    font-size: 14pt;
+    color: #1880C0;
+    margin-top: 10px;
+}
+
+/* ========== COTIZACIÓN (PÁGINA 2) ========== */
+.pagina-cotizacion {
+    padding: 40px 50px;
+    page-break-after: always;
+}
+
+.header-cotizacion {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 3px solid #272B60;
+    padding-bottom: 15px;
+    margin-bottom: 20px;
+}
+
+.header-logo {
+    width: 150px;
+}
+
+.header-info {
+    text-align: right;
+    font-size: 8pt;
+    color: #666;
+}
+
+.cliente-box {
+    background: #f5f5f5;
+    border-left: 5px solid #272B60;
+    padding: 15px;
+    margin: 20px 0;
+}
+
+.cliente-titulo {
+    font-size: 12pt;
+    font-weight: bold;
+    color: #272B60;
+    margin-bottom: 5px;
+}
+
+.cliente-nombre {
+    font-size: 11pt;
+    color: #000;
+}
+
+.cotizacion-meta {
+    display: flex;
+    justify-content: space-between;
+    margin: 20px 0;
+    border: 1px solid #8fa3bf;
+}
+
+.meta-celda {
+    flex: 1;
+    padding: 10px;
+    text-align: center;
+    border-right: 1px solid #8fa3bf;
+}
+
+.meta-celda:last-child { border-right: none; }
+
+.meta-label {
+    font-size: 8pt;
+    color: #666;
+    text-transform: uppercase;
+}
+
+.meta-valor {
+    font-size: 10pt;
+    font-weight: bold;
+    color: #272B60;
+}
+
+.tabla-servicio {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+}
+
+.tabla-servicio th {
+    background: #272B60;
+    color: #fff;
+    padding: 10px;
+    text-align: left;
+    font-size: 9pt;
+}
+
+.tabla-servicio td {
+    padding: 10px;
+    border-bottom: 1px solid #8fa3bf;
+    font-size: 9pt;
+}
+
+.tabla-servicio .col-servicio { width: 40%; }
+.tabla-servicio .col-rango { width: 35%; }
+.tabla-servicio .col-costo { width: 15%; text-align: right; }
+.tabla-servicio .col-cantidad { width: 5%; text-align: center; }
+.tabla-servicio .col-subtotal { width: 15%; text-align: right; }
+
+.total-box {
+    background: #272B60;
+    color: #fff;
+    padding: 15px;
+    text-align: right;
+    margin: 20px 0;
+}
+
+.total-label {
+    font-size: 10pt;
+}
+
+.total-monto {
+    font-size: 18pt;
+    font-weight: bold;
+}
+
+.adicionales-box {
+    margin: 20px 0;
+}
+
+.adicionales-titulo {
+    font-size: 11pt;
+    font-weight: bold;
+    color: #272B60;
+    border-bottom: 2px solid #272B60;
+    padding-bottom: 5px;
+    margin-bottom: 10px;
+}
+
+.adicionales-lista {
+    list-style: none;
+    padding: 0;
+}
+
+.adicionales-lista li {
+    padding: 5px 0;
+    padding-left: 20px;
+    position: relative;
+    font-size: 9pt;
+}
+
+.adicionales-lista li:before {
+    content: "▸";
+    position: absolute;
+    left: 0;
+    color: #1880C0;
+}
+
+.terminos-box {
+    margin: 20px 0;
+    font-size: 8pt;
+    color: #333;
+}
+
+.terminos-titulo {
+    font-size: 10pt;
+    font-weight: bold;
+    color: #272B60;
+    margin-bottom: 10px;
+}
+
+.terminos-lista {
+    list-style: decimal;
+    padding-left: 20px;
+}
+
+.terminos-lista li {
+    margin-bottom: 8px;
+    text-align: justify;
+}
+
+.footer-cotizacion {
+    margin-top: 30px;
+    border-top: 2px solid #272B60;
+    padding-top: 15px;
+    font-size: 8pt;
+    color: #666;
+    text-align: center;
+}
+
+/* ========== CLÁUSULAS (PÁGINAS 3-4) ========== */
+.pagina-clausulas {
+    padding: 40px 50px;
+    page-break-after: always;
+}
+
+.clausulas-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.clausulas-logo {
+    width: 120px;
+    margin-bottom: 10px;
+}
+
+.clausulas-titulo {
+    font-size: 16pt;
+    font-weight: bold;
+    color: #272B60;
+    letter-spacing: 3px;
+}
+
+.clausula {
+    margin-bottom: 20px;
+    text-align: justify;
+}
+
+.clausula-titulo {
+    font-weight: bold;
+    color: #272B60;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+}
+
+.clausula-texto {
+    font-size: 9pt;
+    line-height: 1.6;
+}
+
+.clausula-lista {
+    list-style: upper-roman;
+    padding-left: 30px;
+    margin: 10px 0;
+}
+
+.clausula-lista li {
+    margin-bottom: 8px;
+}
+
+/* ========== FIRMAS (PÁGINA 5) ========== */
+.pagina-firmas {
+    padding: 40px 50px;
+    text-align: center;
+}
+
+.firmas-header {
+    margin-bottom: 40px;
+}
+
+.firmas-logo {
+    width: 180px;
+}
+
+.firmas-grid {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 60px;
+}
+
+.firma-box {
+    width: 40%;
+    text-align: center;
+}
+
+.firma-linea {
+    border-top: 1px solid #000;
+    margin-top: 80px;
+    padding-top: 10px;
+}
+
+.firma-nombre {
+    font-weight: bold;
+    font-size: 10pt;
+}
+
+.firma-cargo {
+    font-size: 9pt;
+    color: #666;
+}
+
+.firmas-logos-cert {
+    margin-top: 60px;
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+    align-items: center;
+}
+
+.logo-cert {
+    height: 60px;
+    opacity: 0.7;
+}
+
+.footer-firmas {
+    margin-top: 40px;
+    font-size: 8pt;
+    color: #666;
+}
+</style>
+</head>
+<body>
+
+<!-- ========== PORTADA ========== -->
+<div class="portada">
+    <div class="portada-grid">
+        <div class="portada-img"></div>
+        <div class="portada-img"></div>
+        <div class="portada-img"></div>
+        <div class="portada-img"></div>
+    </div>
+    <div class="portada-empresa">EISS ENTERPRISE INTEGRAL SECURITY ADVISORS S.A DE C.V</div>
+    <div class="portada-logo-area">
+        <img src="file:///home/julian/Naviera-Registro/staticfiles/images/LOGO-GMP-02.png" class="portada-logo" alt="Global Maritime Protection">
+    </div>
+    <div class="portada-titulo">PROPUESTA ECONÓMICA<br>DE SERVICIOS</div>
+    <div class="portada-subtitulo">OPR - ORGANIZACIÓN DE PROTECCIÓN RECONOCIDA</div>
+</div>
+
+<!-- ========== COTIZACIÓN ========== -->
+<div class="pagina-cotizacion">
+    <div class="header-cotizacion">
+        <img src="file:///home/julian/Naviera-Registro/staticfiles/images/LOGO-GMP-02.png" class="header-logo" alt="GMP">
+        <div class="header-info">
+            Calle Cerro Acasulco 6 Despacho G<br>
+            Col. Romero de Terreros, Alcaldía Coyoacán 04300, CDMX<br>
+            www.enterprisesolutions.mx | www.maritimeprotection.mx<br>
+            Número de Registro: DIGAPROCER-DPMP-OPR-08
+        </div>
+    </div>
+
+    <div class="cliente-box">
+        <div class="cliente-titulo">CLIENTE</div>
+        <div class="cliente-nombre">{{ naviera.nombre_empresa }}</div>
+        <div style="font-size: 9pt; color: #666; margin-top: 5px;">
+            {{ naviera.contacto_principal }}<br>
+            OFICIAL DE LA COMPAÑÍA PARA LA PROTECCIÓN MARÍTIMA
+        </div>
+    </div>
+
+    <div class="cotizacion-meta">
+        <div class="meta-celda">
+            <div class="meta-label">Fecha</div>
+            <div class="meta-valor">{{ fecha }}</div>
+        </div>
+        <div class="meta-celda">
+            <div class="meta-label">Nombre del Buque</div>
+            <div class="meta-valor">{{ buque.nombre_buque }}</div>
+        </div>
+        <div class="meta-celda">
+            <div class="meta-label">Vigencia</div>
+            <div class="meta-valor">{{ vigencia }}</div>
+        </div>
+    </div>
+
+    <table class="tabla-servicio">
+        <thead>
+            <tr>
+                <th class="col-servicio">SERVICIO OFERTADO</th>
+                <th class="col-rango">DESCRIPCIÓN</th>
+                <th class="col-costo">COSTO UNIT.</th>
+                <th class="col-cantidad">CANT.</th>
+                <th class="col-subtotal">SUBTOTAL</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>{{ titulo_servicio }}</strong></td>
+                <td>{{ descripcion_rango }}</td>
+                <td style="text-align: right;">${{ subtotal|floatformat:2 }}</td>
+                <td style="text-align: center;">1</td>
+                <td style="text-align: right;">${{ subtotal|floatformat:2 }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="total-box">
+        <span class="total-label">TOTAL ANTES DE IVA &nbsp;&nbsp;&nbsp;</span>
+        <span class="total-monto">${{ subtotal|floatformat:2 }}</span>
+    </div>
+
+    <div class="adicionales-box">
+        <div class="adicionales-titulo">ADICIONALES</div>
+        <div style="font-size: 9pt; margin-bottom: 10px;">
+            La presente {{ titulo_servicio }} del Buque incluye:
+        </div>
+        <ul class="adicionales-lista">
+            {% for act in actividades %}
+            <li>{{ act }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <div class="terminos-box">
+        <div class="terminos-titulo">TÉRMINOS Y CONDICIONES</div>
+        <ol class="terminos-lista">
+            <li>Modalidades de pago: {{ condiciones_pago.0 }} {% if condiciones_pago|length > 1 %} / {{ condiciones_pago.1 }}{% endif %}</li>
+            <li>En caso de que la ubicación del buque sea diferente a la proporcionada en el momento de la solicitud de esta cotización, los costos de transporte necesarios serán responsabilidad de la compañía del buque.</li>
+            <li>Si la estancia de los auditores se prolonga debido a algún retraso o cambio de fecha de inicio de la evaluación por circunstancias ajenas a la OPR (como cuestiones meteorológicas o incidentes durante el servicio), los gastos adicionales generados serán cubiertos por la compañía del buque. Estos costos equivalen al 15% del total antes de IVA por concepto de horas-hombre por día, más los viáticos que se generen. Dichos costos deberán ser liquidados al final del servicio.</li>
+            <li>La entrega del reporte del servicio prestado estará sujeta a la liquidación del servicio al 100%, incluso si se ha elegido la opción B o existen gastos adicionales. Si la liquidación del servicio se confirma al finalizar el mismo, el reporte se entregará en un plazo de 3 a 5 días hábiles. De lo contrario, el reporte se enviará después de la liquidación y el cliente será responsable de los cargos generados por el envío.</li>
+            <li>El servicio comenzará 5 días hábiles después de la firma de esta cotización y se realizará en un horario establecido de 8:00am a 6:00pm, a menos que se requieran actividades de evaluación nocturnas.</li>
+            <li>Una vez establecida la fecha de inicio del servicio, los requisitos para ingresar al buque, el uso de equipo electrónico (como computadoras, cámaras fotográficas, teléfonos móviles, entre otros) y los medios de transporte deberán ser gestionados por la Naviera con anticipación ante las autoridades correspondientes, a fin de evitar problemas en el uso de las herramientas de trabajo del auditor.</li>
+        </ol>
+    </div>
+
+    <div class="footer-cotizacion">
+        Calle Cerro Acasulco 6 Despacho G, Col. Romero de Terreros, Alcaldía Coyoacán 04300, CDMX<br>
+        www.enterprisesolutions.mx | www.maritimeprotection.mx<br>
+        Número de Registro: DIGAPROCER-DPMP-OPR-08
+    </div>
+</div>
+
+<!-- ========== CLÁUSULAS ========== -->
+<div class="pagina-clausulas">
+    <div class="clausulas-header">
+        <img src="file:///home/julian/Naviera-Registro/staticfiles/images/LOGO-GMP-02.png" class="clausulas-logo" alt="GMP">
+        <div class="clausulas-titulo">CLÁUSULAS</div>
+    </div>
+
+    <div class="clausula">
+        <div class="clausula-titulo">PRIMERA. Objeto del servicio.</div>
+        <div class="clausula-texto">
+            Sujeto a los términos y condiciones establecidos en la presente cotización durante la vigencia de esta cotización, <strong>EL PRESTADOR</strong> prestará a <strong>EL CLIENTE {{ naviera.nombre_empresa }}</strong>, los <strong>SERVICIOS</strong> objeto de la presente cotización consistentes en: {{ clausula_primera }}.
+        </div>
+    </div>
+
+    <div class="clausula">
+        <div class="clausula-titulo">SEGUNDA. Contraprestación.</div>
+        <div class="clausula-texto">
+            Las partes convienen que por el citado servicio <strong>EL CLIENTE</strong> pagará al <strong>PRESTADOR</strong> por los <strong>SERVICIOS</strong> la cantidad de <strong>${{ total|floatformat:2 }}</strong> ({{ total_letras }}) más IVA correspondiente.
+        </div>
+        <div class="clausula-texto" style="margin-top: 10px;">
+            El importe al que se hace referencia en el párrafo anterior será pagado a la firma de la presente cotización, de acuerdo a la modalidad de pago seleccionada a la firma de la presente cotización, mediante transferencia bancaria a la cuenta <strong>CLABE: 036180500567884111 CUENTA: 50056788411 INBURSA</strong>, previa entrega de la factura respectiva que cumpla con los requisitos fiscales aplicables.
+        </div>
+    </div>
+
+    <div class="clausula">
+        <div class="clausula-titulo">TERCERA. Responsabilidad laboral.</div>
+        <div class="clausula-texto">
+            Las partes reconocen expresamente que no tendrán relación alguna de carácter laboral respecto del personal de la otra parte utilizado en la prestación de los <strong>SERVICIOS</strong> materia de esta cotización. <strong>EL PRESTADOR</strong> es y será durante todo el tiempo de vigencia de la presente cotización, un contratista independiente y de ninguna forma un empleado de <strong>EL CLIENTE</strong>. <strong>EL PRESTADOR</strong> prestará los <strong>SERVICIOS</strong> aquí convenidos con su propio personal, toda vez que es una empresa organizada de acuerdo al artículo 13 de la Ley Federal del Trabajo.
+        </div>
+    </div>
+
+    <div class="clausula">
+        <div class="clausula-titulo">CUARTA. Obligaciones del PRESTADOR.</div>
+        <div class="clausula-texto">
+            Con independencia y en adición a todas y cada una de sus obligaciones conforme a la presente cotización, <strong>EL PRESTADOR</strong> en este acto se obliga:
+        </div>
+        <ol class="clausula-lista">
+            <li>Abstenerse de ofrecer o dar incentivos, numerario o regalos, bajo circunstancia alguna a empleados y/o funcionarios de <strong>EL CLIENTE</strong>, o a cualquier autoridad o tercero.</li>
+            <li>Emplear siempre, para la prestación de <strong>SERVICIOS</strong> objeto de esta Cotización, a personal capacitado, supervisando y calificando su desempeño.</li>
+            <li>Asegurarse de que todos sus empleados involucrados en la prestación de los <strong>SERVICIOS</strong> porten en todo momento la vestimenta y equipo de protección.</li>
+        </ol>
+    </div>
+
+    <div class="clausula">
+        <div class="clausula-titulo">QUINTA. Obligaciones del CLIENTE.</div>
+        <div class="clausula-texto">
+            Con independencia y en adición a todas y cada una de sus obligaciones conforme a la presente cotización, <strong>EL CLIENTE</strong> en este acto se obliga:
+        </div>
+        <ol class="clausula-lista">
+            <li>Cumplir con los términos y condiciones citados en la presente cotización.</li>
+            <li>Garantizar que las condiciones para abordar y desembarcar el buque, sean óptimas y seguras, (marejada, amadrinaje de embarcaciones de transporte, mal tiempo, entre otras, quedando bajo su responsabilidad, el traslado en el medio más expedito (si aplica), así como la atención médica y legal en caso de algún percance que ponga en riesgo la integridad de los auditores.</li>
+            <li>Garantizar el acceso al Buque, toda vez que la OPR y sus Auditores, cumplen con lo requerido por la Autoridad Marítima Nacional en cuanto a las DIRECTRICES PARA LAS ORGANIZACIONES DE PROTECCIÓN RECONOCIDAS (OPR), para desempeñarse como Auditor en Protección Marítima.</li>
+        </ol>
+    </div>
+
+    <div class="clausula">
+        <div class="clausula-titulo">SEXTA. Caso fortuito o fuerza mayor.</div>
+        <div class="clausula-texto">
+            Para efectos de la presente cotización, se entiende por caso fortuito o fuerza mayor, los acontecimientos humanos o naturales ajenos a las partes y que se encuentren fuera de control de las mismas, siendo imprevisibles e inevitables en su realización y que no son producidos por culpa, dolo o negligencia propia, siempre y cuando produzcan en forma directa e inmediata la paralización de las actividades en forma temporal o permanente que debieran ejecutarse para el cumplimiento puntual de las obligaciones contraídas en la presente.
+        </div>
+    </div>
+
+    <div class="clausula">
+        <div class="clausula-titulo">SÉPTIMA. Confidencialidad.</div>
+        <div class="clausula-texto">
+            Las partes convienen en mantener en forma confidencial toda la información que se maneje, conozca y que llegue a su conocimiento derivado del objeto de esta cotización, ya sea durante o después de terminado el mismo, así como a no hacer mal uso de la misma.
+        </div>
+    </div>
+
+    <div class="clausula">
+        <div class="clausula-titulo">OCTAVA. Reconocimiento contractual.</div>
+        <div class="clausula-texto">
+            Esta cotización constituye un acuerdo íntegro entre las partes en relación con su objeto y deja sin efecto cualquier otra negociación, obligación o comunicación entre éstas, ya sea verbal o escrita, efectuada con anterioridad a la fecha en que se firme el presente.
+        </div>
+    </div>
+
+    <div class="clausula">
+        <div class="clausula-titulo">NOVENA. Cesión de derechos y obligaciones.</div>
+        <div class="clausula-texto">
+            Las partes acuerdan que el <strong>PRESTADOR</strong> no podrá ceder, traspasar o enajenar total o parcialmente o transferir en forma alguna los derechos y obligaciones que se deriven de la presente cotización bajo ninguna circunstancia, sin el consentimiento previo y por escrito de <strong>EL CLIENTE</strong>.
+        </div>
+    </div>
+
+    <div class="clausula">
+        <div class="clausula-titulo">DÉCIMA. Jurisdicción.</div>
+        <div class="clausula-texto">
+            Para todas las cuestiones relativas al alcance, interpretación y cumplimiento de las obligaciones y derechos consignados en la presente cotización, las partes se someten a las leyes vigentes y a la jurisdicción de los tribunales competentes de la Ciudad de México, renunciando en este acto a cualquier otro fuero que en razón de sus domicilios presentes o futuros o que por cualquier otra causa les pudiera corresponder.
+        </div>
+    </div>
+
+    <div class="clausula" style="margin-top: 40px;">
+        <div class="clausula-texto" style="text-align: center;">
+            Enteradas las partes del alcance, efectos y fuerza legal del contenido de esta cotización lo firman de conformidad por duplicado, en la Ciudad de México, el día {{ fecha }}.
+        </div>
+    </div>
+</div>
+
+<!-- ========== FIRMAS ========== -->
+<div class="pagina-firmas">
+    <div class="firmas-header">
+        <img src="file:///home/julian/Naviera-Registro/staticfiles/images/LOGO-GMP-02.png" class="firmas-logo" alt="GMP">
+    </div>
+
+    <div class="firmas-grid">
+        <div class="firma-box">
+            <div class="firma-linea">
+                <div class="firma-nombre">Por EL CLIENTE</div>
+                <div class="firma-cargo">{{ naviera.contacto_principal }}</div>
+                <div class="firma-cargo">{{ naviera.nombre_empresa }}</div>
+            </div>
+        </div>
+        <div class="firma-box">
+            <div class="firma-linea">
+                <div class="firma-nombre">Cap. Julián Manuel Lugo Gonzalez</div>
+                <div class="firma-cargo">Director General</div>
+                <div class="firma-cargo">Por la OPR</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="firmas-logos-cert">
+        <!-- Aquí puedes agregar logos de certificaciones cuando los tengas -->
+        <div style="font-size: 8pt; color: #999;">[Espacio para logos de certificación]</div>
+    </div>
+
+    <div class="footer-firmas">
+        Calle Cerro Acasulco 6 Despacho G, Col. Romero de Terreros, Alcaldía Coyoacán 04300, CDMX<br>
+        www.enterprisesolutions.mx | www.maritimeprotection.mx<br>
+        Número de Registro: DIGAPROCER-DPMP-OPR-08
+    </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,19 @@
+<!-- templates/admin/portal_cliente/cotizacionpendiente/change_form.html -->
+{% extends "admin/change_form.html" %}
+
+{% block submit_buttons_bottom %}
+    {{ block.super }}
+    
+    {% if show_aprobar %}
+    <div class="submit-row" style="margin-top: 10px;">
+        <a href="{{ aprobar_url }}" 
+           class="default" 
+           style="background: #417690; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px; display: inline-block;">
+            ✅ APROBAR Y GENERAR PDF
+        </a>
+        <span style="margin-left: 10px; color: #666; font-size: 12px;">
+            Se calculará costo según tarifa y se generará PDF automáticamente
+        </span>
+    </div>
+    {% endif %}
+{% endblock %}
