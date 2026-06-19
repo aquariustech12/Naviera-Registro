@@ -4,15 +4,21 @@ Django settings for naviera_registro project.
 
 from pathlib import Path
 import os
+from decouple import config
+
+
+def config_bool(value):
+    return str(value).strip().lower() in ('1', 'true', 'yes', 'on', 'debug', 'dev', 'development')
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'q8!j!w4d*fklfzhuzdi&dg-$(piv8c87jiulj7^yh76!t(qa6$'
+SECRET_KEY = config('SECRET_KEY', default='q8!j!w4d*fklfzhuzdi&dg-$(piv8c87jiulj7^yh76!t(qa6$')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = config('DEBUG', default=False, cast=config_bool)
 
 # Se incluyen todas las IPs relevantes para evitar errores de Host
 ALLOWED_HOSTS = [
@@ -125,7 +131,7 @@ CSRF_TRUSTED_ORIGINS = [
 
 # Archivos Media
 MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+MEDIA_ROOT = '/mnt/mediapool/naviera-media'
 
 # Configuración de envío de correo (SMTP Gmail)
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
@@ -134,7 +140,7 @@ EMAIL_PORT = 465
 EMAIL_USE_SSL = True
 EMAIL_USE_TLS = False
 EMAIL_HOST_USER = '08opr.manager@gmail.com'
-EMAIL_HOST_PASSWORD = 'ftvksxgftlbxukgv'
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='ftvksxgftlbxukgv')
 
 DEFAULT_FROM_EMAIL = '08opr.manager@gmail.com'
 SERVER_EMAIL = '08opr.manager@gmail.com'
