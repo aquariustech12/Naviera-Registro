@@ -33,3 +33,6 @@ media/
 # Backup files
 *~
 *.bak
+
+# Local/generated MIA library documents
+biblioteca_mia/*.txt
