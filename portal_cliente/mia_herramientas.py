@@ -45,7 +45,7 @@ from naviera_registro.models import Naviera, Buque, RequisitoBuque, PuntoPBIP, D
 # ============================================================================
 
 CHROMA_PATH = "/home/julian/Naviera-Registro/scripts/chroma_db"
-COLLECTION_NAME = "auditoria_pbip"
+COLLECTION_NAME = "mia_conocimiento"
 
 print(f"--- MIA HERRAMIENTAS INICIANDO ---")
 print(f"OCR: {'✅' if OCR_AVAILABLE else '❌'}")
@@ -74,7 +74,7 @@ def _inicializar_chroma():
             collection_name=COLLECTION_NAME
         )
         count = vector_db._collection.count()
-        print(f"✅ Base PBIP: {count} documentos")
+        print(f"✅ Base MIA ({COLLECTION_NAME}): {count} documentos")
 
         # Construir índice BM25
         if BM25_AVAILABLE and count > 0:
@@ -254,7 +254,7 @@ def buscar_pbip_hibrido(query: str, k: int = 5, parte: str = None,
 def consultar_ollama(prompt: str, temperature: float = 0.2, num_ctx: int = 16384) -> str:
     url = "http://localhost:11434/api/generate"
     payload = {
-        "model": "qwen2.5:3b",
+        "model": "qwen2.5:7b-instruct-q4_K_M",
         "prompt": prompt,
         "stream": False,
         "options": {"num_ctx": num_ctx, "temperature": temperature, "num_gpu": 99}
@@ -362,6 +362,108 @@ def herramienta_consultar_pbip(tema: str, k: int = 5, parte: str = None) -> str:
 
     except Exception as e:
         return f"Error consultando PBIP: {e}"
+
+
+# ============================================================================
+# BÚSQUEDA UNIFICADA — PBIP + LEGISLACIÓN + FUTUROS DOMINIOS
+# ============================================================================
+
+def buscar_legislacion(query: str, k: int = 6) -> list:
+    if vector_db is None:
+        return []
+    try:
+        q = query.lower()
+        archivo_filtro = None
+        if any(x in q for x in ["lncm", "navegaci", "comercio mar"]):
+            archivo_filtro = "LNCM.txt"
+        elif any(x in q for x in ["loapf", "administraci"]):
+            archivo_filtro = "LOAPF.txt"
+        elif any(x in q for x in ["risemar"]):
+            archivo_filtro = "RISEMAR.txt"
+
+        if archivo_filtro:
+            filtro = {"$and": [{"dominio": "legislacion_mexicana"}, {"archivo_original": archivo_filtro}]}
+        else:
+            filtro = {"dominio": "legislacion_mexicana"}
+
+        semanticos = vector_db.similarity_search(query, k=k, filter=filtro)
+        resultados = [{"text": r.page_content, "metadata": r.metadata} for r in semanticos]
+
+        if _bm25_index and _corpus_texts:
+            tokens = query.lower().split()
+            scores = _bm25_index.get_scores(tokens)
+            indices_leg = [
+                i for i, m in enumerate(_corpus_metadatas)
+                if m.get("dominio") == "legislacion_mexicana"
+                and (archivo_filtro is None or m.get("archivo_original") == archivo_filtro)
+            ]
+            top = sorted(indices_leg, key=lambda i: scores[i], reverse=True)[:k]
+            ids_ya = {r["text"][:50] for r in resultados}
+            for i in top:
+                texto = _corpus_texts[i]
+                if texto[:50] not in ids_ya and scores[i] > 0.5:
+                    resultados.append({"text": texto, "metadata": _corpus_metadatas[i]})
+
+        return resultados[:k]
+
+    except Exception as e:
+        print(f"Error busqueda legislacion: {e}")
+        return []
+
+def buscar_conocimiento(query: str, k: int = 8, dominio: str = None) -> list:
+    """
+    Búsqueda semántica en todo el corpus MIA sin filtro de dominio.
+    dominio: None = busca todo | 'pbip' | 'legislacion_mexicana'
+    Ideal para documentos enviados por WhatsApp donde no sabes de antemano
+    si el contenido es PBIP, legal o mixto.
+    """
+    if vector_db is None:
+        print("⚠️ vector_db no inicializado")
+        return []
+    try:
+        filtro = {"dominio": dominio} if dominio else None
+        results = vector_db.similarity_search(query, k=k, filter=filtro)
+        return [{"text": r.page_content, "metadata": r.metadata} for r in results]
+    except Exception as e:
+        print(f"Error en búsqueda conocimiento: {e}")
+        return []
+
+
+def herramienta_consultar_conocimiento(tema: str, k: int = 8) -> str:
+    """
+    Consulta el corpus unificado MIA (PBIP + legislación).
+    Usada para análisis de documentos que llegan por WhatsApp —
+    el LLM recibe chunks con metadata de fuente y cita correctamente.
+    """
+    try:
+        resultados = buscar_conocimiento(tema, k=k)
+
+        if not resultados:
+            return f"No encontré información sobre '{tema}' en la base de conocimiento."
+
+        lineas = []
+        for r in resultados:
+            meta = r['metadata']
+            dominio  = meta.get('dominio', 'desconocido')
+            fuente   = meta.get('fuente', 'Fuente desconocida')
+            articulo = meta.get('articulo', '')
+            seccion  = meta.get('seccion', '')
+            parte    = meta.get('parte', '')
+
+            if dominio == 'pbip':
+                ref = f"PBIP Parte {parte} | {seccion}"
+            elif dominio == 'legislacion_mexicana':
+                ref = f"{fuente} | Art. {articulo}" if articulo else fuente
+            else:
+                ref = fuente
+
+            contenido = r['text'][:1200] if len(r['text']) > 600 else r['text']
+            lineas.append(f"[{ref}]\n{contenido}")
+
+        return "\n\n---\n\n".join(lineas)
+
+    except Exception as e:
+        return f"Error consultando conocimiento: {e}"
 
 
 # ============================================================================

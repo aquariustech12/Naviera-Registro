@@ -9,7 +9,8 @@ from .mia_herramientas import (
     herramienta_consultar_estado,
     herramienta_reporte_global,
     enviar_whatsapp_jid,
-    buscar_pbip_hibrido
+    buscar_pbip_hibrido,
+    buscar_legislacion
 )
 from .mia_documentos import herramienta_analizar_documento
 
@@ -103,6 +104,9 @@ def procesar_input_mia(texto_usuario=None, documento_obj=None, numero_whatsapp=N
     elif intencion == "CONSULTA_NORMATIVA":
         respuesta = _modo_consulta_pbip(texto_usuario, entidades, contexto)
 
+    elif intencion == "CONSULTA_LEGISLACION":
+        respuesta = _modo_consulta_legislacion(texto_usuario, entidades, contexto)
+
     elif intencion == "CONSULTA_ESTADO":
         respuesta = _modo_consulta_estado(texto_usuario, entidades, contexto)
 
@@ -152,12 +156,39 @@ def _clasificar_intencion(texto: str, contexto: list):
         entidades["recordatorio"] = texto
         return "CONVERSACION_GENERAL", entidades
 
-    # Normativa PBIP
-    pbip_keywords = ["pbip", "código", "codigo", "normativa", "artículo", "articulo", 
-                     "omi", "reglamento", "ley", "circular", "resolución", "resolucion",
-                     "control de acceso", "pfso", "opb", "sso", "csp", "isps",
-                     "remolcador", "pesquero", "yate", "buque auxiliar", "certificado",
-                     "obligatorio", "debe tener", "necesita", "aplica a"]
+    # ── LEGISLACIÓN MEXICANA — va ANTES que PBIP ────────────────────────────
+    legislacion_keywords = [
+        "ley de navegación", "ley de navegacion", "lncm",
+        "ley orgánica", "ley organica", "loapf",
+        "reglamento interior", "risemar",
+        "ley de puertos", "código penal", "constitucion",
+        "reglamento de la ley de navegación", "reglamento lncm",
+        "registro nacional de embarcaciones", "rne",
+        "certificado de matrícula", "certificado de matricula", "matrícula",
+        "abanderamiento", "nacionalidad mexicana", "pabellón mexicano",
+        "capitanía de puerto", "capitania de puerto",
+        "secretaría de marina", "secretaria de marina",
+        "circular msc", "circular omi",
+    ]
+    tiene_legislacion = any(k in texto_lower for k in legislacion_keywords)
+    tiene_pbip_explicito = any(k in texto_lower for k in ["pbip", "codigo pbip", "código pbip", "isps", "capítulo xi-2"])
+
+    if tiene_legislacion and not tiene_pbip_explicito:
+        entidades["tema_legislacion"] = texto
+        return "CONSULTA_LEGISLACION", entidades
+
+    # ── NORMATIVA PBIP ───────────────────────────────────────────────────────
+    pbip_keywords = [
+        "pbip", "código pbip", "codigo pbip", "isps", "capítulo xi-2",
+        "normativa", "pfso", "opb", "sso", "ocpm", "csp",
+        "control de acceso", "zonas restringidas", "piratería", "polizones",
+        "plan de protección", "evaluación de protección",
+        "niveles de protección", "nivel 1", "nivel 2", "nivel 3",
+        "remolcador", "pesquero", "yate", "buque auxiliar",
+        "instalación portuaria", "protección marítima",
+        "obligatorio", "debe tener", "aplica a",
+        "omi", "circular", "resolución", "resolucion",
+    ]
     if any(k in texto_lower for k in pbip_keywords):
         entidades["tema_pbip"] = texto
         return "CONSULTA_NORMATIVA", entidades
@@ -194,7 +225,8 @@ def _clasificar_con_llm(texto: str, contexto: list):
     prompt = f"""Eres el clasificador de MIA. Clasifica el mensaje del auditor en UNA categoría:
 
 CATEGORÍAS:
-- CONSULTA_NORMATIVA: Pregunta sobre PBIP, OMI, regulaciones, normas marítimas, certificados, tipos de buques
+- CONSULTA_LEGISLACION: Pregunta sobre leyes mexicanas (LNCM, Ley de Puertos, LOAPF), reglamentos SEMAR, matrícula, abanderamiento, RNE, capitanía de puerto, nacionalidad de embarcación
+- CONSULTA_NORMATIVA: Pregunta sobre Código PBIP/ISPS, OMI, planes de protección, certificados ISPS, niveles de protección, oficiales PFSO/SSO/OPB
 - CONSULTA_ESTADO: Pregunta sobre navieras, buques, progreso, expedientes, documentos faltantes
 - CONVERSACION_GENERAL: Saludos, despedidas, preguntas sobre MIA, chit-chat, frases cortas
 - RECORDATORIO: Solicita alertas, recordatorios, notificaciones
@@ -347,3 +379,43 @@ FORMATO:
 Solo añade el menú de opciones si el usuario preguntó explícitamente qué puedes hacer o parece perdido."""
 
     return consultar_ollama(prompt, temperature=0.4, num_ctx=4096)
+
+def _modo_consulta_legislacion(pregunta: str, entidades: dict, contexto: list) -> str:
+    tema = entidades.get("tema_legislacion") or pregunta
+    resultados = buscar_legislacion(tema, k=8)
+
+    if not resultados:
+        return f"🤖 *MIA*\n\nNo encontré información sobre '{tema}' en la base legislativa.\n\n💡 Intenta con términos como 'LNCM', 'Ley de Navegación', 'matrícula', 'capitanía de puerto'."
+
+    # DEBUG TEMPORAL
+    print(f"DEBUG LEGISLACION query: {tema}")
+    for r in resultados:
+        print(f"  >> {r['metadata'].get('fuente')} | Art. {r['metadata'].get('articulo')} | {r['text'][:80]}")
+    
+    chunks = []
+    for r in resultados:
+        meta = r['metadata']
+        fuente = meta.get('fuente', 'Legislación')
+        articulo = meta.get('articulo', '')
+        ref = f"{fuente} | Art. {articulo}" if articulo else fuente
+        contenido = r['text'][:1000] if len(r['text']) > 500 else r['text']
+        chunks.append(f"[{ref}]\n{contenido}")
+
+    contexto_legal = "\n---\n".join(chunks)
+
+    prompt = f"""Tienes estos fragmentos legales. LEE SOLO ESTOS, no uses conocimiento externo.
+
+{contexto_legal}
+
+PREGUNTA: {pregunta}
+
+INSTRUCCIÓN: Busca en los fragmentos de arriba la respuesta. Copia el texto exacto del fragmento relevante. Si no está, di "No encontrado en los textos".
+
+FORMATO OBLIGATORIO:
+🤖 *MIA - CONSULTA LEGISLATIVA*
+📜 *Fuente:* [nombre de la ley del fragmento relevante]
+📌 *Artículo:* [número del artículo del fragmento]
+💡 *Respuesta:* [respuesta en una oración]
+📖 *Texto:* [copia textual del fragmento relevante]"""
+
+    return consultar_ollama(prompt, temperature=0.1, num_ctx=4096)

@@ -91,30 +91,43 @@ def herramienta_analizar_documento(documento_obj, jid_remitente=None):
         fecha_hoy = datetime.now().strftime("%d/%m/%Y")
         contexto_pbip = herramienta_consultar_pbip(texto[:4000], k=8)
 
-        prompt = f"""Eres MIA, auditor experto en Código PBIP.
+        prompt = f"""Eres MIA, auditor experto en Código PBIP. Analiza el documento con precisión quirúrgica.
 FECHA: {fecha_hoy}
 DOCUMENTO: "{nombre_doc}"
-CONTENIDO: {texto[:5000]}
-ARTÍCULOS PBIP: {contexto_pbip}
 
-INSTRUCCIONES:
-1. Identifica tipo de documento.
-2. Extrae Titular, Folio, Expedición, Vigencia.
-3. Analiza contra artículos PBIP.
-4. Evalúa cumplimiento.
+CONTENIDO EXTRAÍDO:
+{texto[:5000]}
 
-FORMATO:
+MARCO LEGAL PBIP (RAG):
+{contexto_pbip}
+
+INSTRUCCIONES CRÍTICAS:
+1. Identifica el tipo exacto de documento (Designación OPB, Designación PFSO, Plan de Protección, Certificado, etc.)
+2. Para DESIGNACIONES (OPB, PFSO, OCPM):
+   - Extrae TODOS los titulares nombrados — puede haber varios
+   - El firmante es el OCPM o autoridad que designa, NO el titular
+   - Busca: nombres de capitanes, oficiales o personal designado
+   - La vigencia suele ser "Permanente mientras dure el cargo" si no hay fecha explícita
+3. Para PLANES o EVALUACIONES: extrae secciones y verifica estructura mínima
+4. Dictamen pragmático:
+   - CUMPLE si el documento cumple su función principal (designar, certificar, planificar)
+   - NO CUMPLE solo si faltan datos esenciales o está vencido
+   - NO inventes requisitos que no están en los artículos recuperados
+5. Cita SOLO artículos que aparezcan en el MARCO LEGAL PBIP de arriba
+
+FORMATO OBLIGATORIO:
 🤖 *MIA - AUDITORÍA*
 📄 *Documento:* {nombre_doc}
-🏷️ *Tipo:* [OPB/PFSO/Plan/Admin/etc.]
-👤 *Titular:* [nombre o No encontrado]
-📜 *Folio:* [número o No encontrado]
-📅 *Expedición:* [fecha o No encontrado]
-⏰ *Vigencia:* [fecha o No aplica]
-🔍 *Análisis:* [evaluación detallada]
-📜 *Base Legal:* [artículos aplicables]
-✅/❌ *Dictamen:* [CUMPLE/NO CUMPLE/NO APLICA]
-💡 *Recomendación:* [solo si hay deficiencias]"""
+🏷️ *Tipo:* [tipo exacto]
+👤 *Titular(es):* [todos los nombres encontrados, separados por coma, o "No encontrado"]
+✍️ *Firmante/Autoridad:* [quien expide o firma]
+📜 *Folio:* [número o "No encontrado"]
+📅 *Expedición:* [fecha encontrada o "No especificada"]
+⏰ *Vigencia:* [fecha o "Permanente mientras dure el cargo"]
+🔍 *Análisis:* [evaluación real basada en el contenido, sin inventar]
+📜 *Base Legal:* [solo artículos que aparecen en el marco legal RAG]
+✅/❌ *Dictamen:* [CUMPLE / NO CUMPLE / NO APLICA]
+💡 *Recomendación:* [solo si hay deficiencias reales]"""
 
         resultado = consultar_ollama(prompt, temperature=0.2, num_ctx=16384)
         _notificar(jid_remitente, resultado)
