@@ -125,10 +125,18 @@ class DocumentoEntregable(models.Model):
                         to=[correo_destino],
                         bcc=['generalmanager@maritimeprotection.mx']
                     )
-                    # Forzamos el envío síncrono seguro (Quitamos el threading)
-                    email.send(fail_silently=True)
+                    
+                    # Regresar a un hilo de fondo para que no bloquee, pero exponiendo errores en consola
+                    def despachar_correo():
+                        try:
+                            email.send(fail_silently=False)
+                        except Exception as mail_err:
+                            print(f"❌ FALLO CRÍTICO SMTP EN BACKGROUND: {mail_err}")
+
+                    threading.Thread(target=despachar_correo, daemon=True).start()
+
                 except Exception as e:
-                    print(f"❌ Error al despachar correo automático al cliente: {e}")
+                    print(f"❌ Error al inicializar objeto de correo: {e}")
 
 class AnalisisMIA(models.Model):
     documento = models.OneToOneField(RequisitoBuque, on_delete=models.CASCADE, related_name='analisis_mia')
