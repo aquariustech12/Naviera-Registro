@@ -37,6 +37,7 @@ urlpatterns = [
     path('logout/', auth_views.LogoutView.as_view(), name='logout'),
     path('webhook-mia/', portal_views.webhook_mia, name='webhook_mia'),
     path('webhook-mia-documento/', webhook_mia_documento, name='webhook_mia_documento'),
+    path('api/mia/', include('api_mia.urls')),
 ]
 
 if settings.DEBUG:
