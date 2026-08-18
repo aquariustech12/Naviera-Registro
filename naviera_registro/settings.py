@@ -30,6 +30,7 @@ ALLOWED_HOSTS = [
     '127.0.0.1',
     '192.168.1.71',
     '192.168.1.76',
+    '100.83.217.13',
 ]
 
 # Application definition
@@ -43,6 +44,7 @@ INSTALLED_APPS = [
     'naviera_registro',
     'captcha',
     'portal_cliente',
+    'api_mia',
 ]
 
 # Configuración de ReCaptcha
