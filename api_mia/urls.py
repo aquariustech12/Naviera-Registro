@@ -6,4 +6,5 @@ urlpatterns = [
     path('naviera/', views.consultar_naviera, name='api_mia_naviera'),
     path('reporte/', views.reporte_global, name='api_mia_reporte'),
     path('cotizacion/calcular/', views.calcular_cotizacion, name='api_mia_calcular_cotizacion'),
+    path('historial/', views.historial_documentos, name='api_mia_historial'),
 ]

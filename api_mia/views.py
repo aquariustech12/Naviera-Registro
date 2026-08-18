@@ -92,3 +92,50 @@ def calcular_cotizacion(request):
 
     costos_serializables = {k: str(v) for k, v in costos.items()}
     return JsonResponse(costos_serializables)
+
+
+@requiere_token_mia
+@require_GET
+def historial_documentos(request):
+    from django.utils import timezone
+    naviera_nombre = request.GET.get('naviera')
+    buque_nombre = request.GET.get('buque')
+    omi = request.GET.get('omi')
+
+    if not naviera_nombre and not buque_nombre and not omi:
+        return JsonResponse({"error": "Se requiere 'naviera', 'buque' u 'omi'"}, status=400)
+
+    docs = RequisitoBuque.objects.all()
+    if omi:
+        docs = docs.filter(buque__OMI=omi)
+    elif buque_nombre:
+        docs = docs.filter(buque__nombre_buque__icontains=buque_nombre)
+    elif naviera_nombre:
+        docs = docs.filter(naviera__nombre_empresa__icontains=naviera_nombre)
+
+    docs = docs.order_by('-fecha_subida')
+
+    if not docs.exists():
+        return JsonResponse({"encontrado": False, "mensaje": "Sin documentos registrados para ese criterio"})
+
+    ultima_fecha = docs.first().fecha_subida
+    primera_fecha = docs.last().fecha_subida
+    meses_desde_ultimo = (timezone.now() - ultima_fecha).days // 30
+
+    return JsonResponse({
+        "encontrado": True,
+        "total_documentos": docs.count(),
+        "primera_subida": primera_fecha.isoformat(),
+        "ultima_subida": ultima_fecha.isoformat(),
+        "meses_desde_ultima_actividad": meses_desde_ultimo,
+        "documentos": [
+            {
+                "nombre": d.nombre_documento,
+                "categoria": d.categoria,
+                "naviera": d.naviera.nombre_empresa if d.naviera else None,
+                "buque": d.buque.nombre_buque if d.buque else None,
+                "fecha_subida": d.fecha_subida.isoformat(),
+            }
+            for d in docs
+        ]
+    })
