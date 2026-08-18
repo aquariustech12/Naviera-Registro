@@ -10,6 +10,14 @@ class Naviera(models.Model):
     alta_completa = models.BooleanField(default=False)
     fecha_alta_completa = models.DateTimeField(null=True, blank=True)
 
+    # NUEVO: interruptor maestro de recordatorios proactivos (MIA Proactivo).
+    # False = no se le manda ningún WhatsApp/email de seguimiento, pero el
+    # historial en AlertaProactiva y todo lo demás se conserva intacto.
+    notificaciones_activas = models.BooleanField(
+        default=True,
+        verbose_name="Recibir recordatorios automáticos (WhatsApp/Email)"
+    )
+
     def __str__(self):
         return self.nombre_empresa
 
@@ -28,6 +36,14 @@ class Buque(models.Model):
     # NUEVO: Estado de pagos
     pago_1_completado = models.BooleanField(default=False)
     pago_2_completado = models.BooleanField(default=False)
+
+    # NUEVO: se apaga solo cuando se sube el INFORME_PBIP (servicio ya
+    # entregado al cliente vía portal) — corta el recordatorio de docs PBIP
+    # para ESTE buque específico sin afectar otros buques de la misma naviera.
+    notificaciones_activas = models.BooleanField(
+        default=True,
+        verbose_name="Recibir recordatorios de documentación PBIP"
+    )
 
     def __str__(self):
         return f"{self.nombre_buque} (OMI: {self.OMI})"
@@ -104,6 +120,13 @@ class DocumentoEntregable(models.Model):
             buque_txt = self.buque.nombre_buque if self.buque else "General (Administrativo)"
             tipo_txt = nombres_tipos.get(self.tipo, self.tipo)
             correo_destino = naviera_obj.correo_electronico
+
+            # NUEVO: el INFORME_PBIP es la versión digital final del servicio
+            # ya entregada al cliente en el portal — a partir de aquí se
+            # apagan los recordatorios automáticos de MIA Proactivo para
+            # ESE buque (no afecta otros buques de la misma naviera).
+            if self.tipo == 'INFORME_PBIP' and self.buque_id:
+                Buque.objects.filter(pk=self.buque_id).update(notificaciones_activas=False)
 
             # Solo se dispara si la naviera tiene un correo registrado
             if correo_destino:

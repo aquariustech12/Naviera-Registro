@@ -133,10 +133,12 @@ def job_alta_navieras():
     """Revisa navieras con alta incompleta. Envía WhatsApp+Email al cliente."""
     print(f"\n🔔 [{timezone.now()}] job_alta_navieras ejecutando...")
 
-    navieras = Naviera.objects.filter(alta_completa=False)
+    # NUEVO: solo navieras con notificaciones_activas=True. Esto respeta el
+    # apagado manual (interruptor maestro) sin tocar el historial existente.
+    navieras = Naviera.objects.filter(alta_completa=False, notificaciones_activas=True)
 
     if not navieras.exists():
-        print("  ✅ Todas las navieras completas")
+        print("  ✅ Todas las navieras completas o con notificaciones apagadas")
         return
 
     for naviera in navieras:
@@ -221,7 +223,14 @@ def job_docs_pbip_faltantes():
 
     total_pbip = PuntoPBIP.objects.count()
 
-    for buque in Buque.objects.all():
+    # NUEVO: filtra por notificaciones_activas del buque (se apaga solo al
+    # subir el INFORME_PBIP) y de la naviera (interruptor maestro manual).
+    buques_a_revisar = Buque.objects.filter(
+        notificaciones_activas=True,
+        naviera__notificaciones_activas=True
+    )
+
+    for buque in buques_a_revisar:
         pbip_count = RequisitoBuque.objects.filter(buque=buque, categoria='DOCUMENTAL').count()
         if pbip_count >= total_pbip:
             continue
