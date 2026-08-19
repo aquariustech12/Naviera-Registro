@@ -139,3 +139,45 @@ def historial_documentos(request):
             for d in docs
         ]
     })
+
+
+@requiere_token_mia
+@require_GET
+def verificar_documento_duplicado(request):
+    """
+    Dado naviera/buque + nombre_documento, indica si el más reciente coincide
+    en hash con una versión anterior (posible documento no actualizado).
+    """
+    naviera_nombre = request.GET.get('naviera')
+    buque_nombre = request.GET.get('buque')
+    nombre_documento = request.GET.get('nombre_documento')
+
+    if not nombre_documento or (not naviera_nombre and not buque_nombre):
+        return JsonResponse({"error": "Se requiere 'nombre_documento' y ('naviera' o 'buque')"}, status=400)
+
+    docs = RequisitoBuque.objects.filter(nombre_documento__icontains=nombre_documento)
+    if buque_nombre:
+        docs = docs.filter(buque__nombre_buque__icontains=buque_nombre)
+    elif naviera_nombre:
+        docs = docs.filter(naviera__nombre_empresa__icontains=naviera_nombre)
+
+    docs = docs.order_by('-fecha_subida')
+    if not docs.exists():
+        return JsonResponse({"encontrado": False})
+
+    ultimo = docs.first()
+    hay_anterior_identico = ultimo.hash_coincide_con_anterior_id is not None
+
+    resultado = {
+        "encontrado": True,
+        "nombre_documento": ultimo.nombre_documento,
+        "fecha_ultima_subida": ultimo.fecha_subida.isoformat(),
+        "tiene_hash": bool(ultimo.hash_documento),
+        "es_identico_a_version_anterior": hay_anterior_identico,
+    }
+
+    if hay_anterior_identico:
+        anterior = ultimo.hash_coincide_con_anterior
+        resultado["fecha_version_anterior_identica"] = anterior.fecha_subida.isoformat()
+
+    return JsonResponse(resultado)

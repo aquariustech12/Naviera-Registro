@@ -66,7 +66,44 @@ class RequisitoBuque(models.Model):
         blank=True, 
         null=True,
         verbose_name="Motivo de rechazo/eliminación")
-    
+
+    # NUEVO: hash SHA-256 del contenido del archivo, para detectar duplicados
+    # y documentos que no se actualizaron entre servicios (ej. renovaciones).
+    hash_documento = models.CharField(max_length=64, blank=True, db_index=True)
+    hash_coincide_con_anterior = models.ForeignKey(
+        'self', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='duplicados_posteriores',
+        verbose_name="Coincide con este documento anterior (mismo hash)"
+    )
+
+    def calcular_y_verificar_hash(self):
+        """Calcula el hash del archivo y detecta si coincide con una subida previa
+        del mismo buque+categoria+nombre_documento (o naviera+nombre si es administrativo)."""
+        import hashlib
+        if not self.archivo:
+            return
+        self.archivo.seek(0)
+        self.hash_documento = hashlib.sha256(self.archivo.read()).hexdigest()
+        self.archivo.seek(0)
+
+        filtro = {
+            'nombre_documento': self.nombre_documento,
+            'hash_documento': self.hash_documento,
+        }
+        if self.buque_id:
+            filtro['buque_id'] = self.buque_id
+        else:
+            filtro['naviera_id'] = self.naviera_id
+
+        anterior = RequisitoBuque.objects.filter(**filtro).exclude(pk=self.pk).order_by('-fecha_subida').first()
+        if anterior:
+            self.hash_coincide_con_anterior = anterior
+
+    def save(self, *args, **kwargs):
+        if self.archivo and not self.hash_documento:
+            self.calcular_y_verificar_hash()
+        super().save(*args, **kwargs)
+
     def __str__(self):
         ref = self.buque.nombre_buque if self.buque else f"Admin - {self.naviera}"
         return f"{self.nombre_documento} ({ref})"
