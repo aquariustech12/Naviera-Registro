@@ -4,7 +4,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 from django.shortcuts import get_object_or_404
 
-from naviera_registro.models import Naviera, Buque, RequisitoBuque
+from naviera_registro.models import Naviera, Buque, RequisitoBuque, PuntoPBIP, DocumentoEntregable
 from portal_cliente.models import TarifarioGMP, CotizacionPendiente
 from portal_cliente.cotizador import calcular_costo_cotizacion
 
@@ -181,3 +181,48 @@ def verificar_documento_duplicado(request):
         resultado["fecha_version_anterior_identica"] = anterior.fecha_subida.isoformat()
 
     return JsonResponse(resultado)
+
+
+@requiere_token_mia
+@require_GET
+def servicios_por_cerrar(request):
+    """
+    Buques cuyo INFORME_PBIP fue entregado hace exactamente 6 días
+    (aviso 1 día antes del cierre a los 7 días) y aún tienen
+    documentos DOCUMENTAL faltantes.
+    """
+    from django.utils import timezone
+    from datetime import timedelta
+
+    fecha_objetivo = (timezone.now() - timedelta(days=6)).date()
+
+    informes = DocumentoEntregable.objects.filter(
+        tipo='INFORME_PBIP',
+        fecha_subida__date=fecha_objetivo
+    )
+
+    total_pbip = PuntoPBIP.objects.count() if PuntoPBIP.objects.exists() else 28
+    resultados = []
+
+    for informe in informes:
+        if not informe.buque_id:
+            continue
+        docs_subidos = RequisitoBuque.objects.filter(
+            buque_id=informe.buque_id, categoria='DOCUMENTAL'
+        ).count()
+
+        if docs_subidos < total_pbip:
+            buque = informe.buque
+            resultados.append({
+                "buque": buque.nombre_buque,
+                "omi": buque.OMI,
+                "naviera": buque.naviera.nombre_empresa,
+                "naviera_contacto": buque.naviera.correo_electronico,
+                "fecha_entrega_informe": informe.fecha_subida.date().isoformat(),
+                "fecha_cierre_programada": (informe.fecha_subida.date() + timedelta(days=7)).isoformat(),
+                "documentos_subidos": docs_subidos,
+                "documentos_totales_esperados": total_pbip,
+                "documentos_faltantes": total_pbip - docs_subidos,
+            })
+
+    return JsonResponse({"casos": resultados, "total": len(resultados)})

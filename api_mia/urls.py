@@ -8,4 +8,5 @@ urlpatterns = [
     path('cotizacion/calcular/', views.calcular_cotizacion, name='api_mia_calcular_cotizacion'),
     path('historial/', views.historial_documentos, name='api_mia_historial'),
     path('verificar-duplicado/', views.verificar_documento_duplicado, name='api_mia_verificar_duplicado'),
+    path('servicios-por-cerrar/', views.servicios_por_cerrar, name='api_mia_servicios_por_cerrar'),
 ]
