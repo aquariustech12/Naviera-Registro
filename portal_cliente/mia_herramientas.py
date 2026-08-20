@@ -585,7 +585,7 @@ def enviar_whatsapp_jid(jid: str, mensaje: str) -> bool:
 
     try:
         requests.post(
-            "http://localhost:9000/enviar",
+            "http://100.112.139.108:9000/enviar",
             json={"jid": jid, "mensaje": mensaje},
             timeout=10
         )
@@ -598,7 +598,7 @@ def enviar_whatsapp_jid(jid: str, mensaje: str) -> bool:
 def enviar_whatsapp_numero(numero: str, mensaje: str) -> bool:
     try:
         requests.post(
-            "http://localhost:9000/enviar",
+            "http://100.112.139.108:9000/enviar",
             json={"numero": numero, "mensaje": mensaje},
             timeout=10
         )
