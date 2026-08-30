@@ -320,7 +320,8 @@ def job_resumen_matutino():
     msg += "\n📋 *PENDIENTES:*\n"
     for n in Naviera.objects.filter(alta_completa=False):
         admin_count = RequisitoBuque.objects.filter(naviera=n, buque__isnull=True, categoria='ADMINISTRATIVO').count()
-        msg += f"• {n.nombre_empresa}: {admin_count}/6 admin\n"
+        faltan_admin = 6 - admin_count
+        msg += f"• {n.nombre_empresa}: faltan {faltan_admin}/6 admin\n"
 
     msg += "\n_¿Algo más, capitán?_ ⚓"
 

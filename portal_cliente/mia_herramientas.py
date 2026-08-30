@@ -4,21 +4,7 @@ import re
 import json
 import shutil
 import requests
-import numpy as np
 from datetime import datetime
-
-from langchain_chroma import Chroma
-from langchain_ollama import OllamaEmbeddings
-from langchain_core.documents import Document
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-
-# BM25 para búsqueda híbrida
-try:
-    from rank_bm25 import BM25Okapi
-    BM25_AVAILABLE = True
-except ImportError:
-    BM25_AVAILABLE = False
-    print("⚠️ rank-bm25 no instalado. Ejecuta: pip install rank-bm25")
 
 # OCR
 try:
@@ -44,26 +30,15 @@ from naviera_registro.models import Naviera, Buque, RequisitoBuque, PuntoPBIP, D
 # CONFIGURACIÓN
 # ============================================================================
 
-CHROMA_PATH = "/home/julian/Naviera-Registro/scripts/chroma_db"
-COLLECTION_NAME = "mia_conocimiento"
+# RAG v3 remoto (Epyc/Sonora) — reemplaza el corpus local mia_conocimiento
+RAG_V3_URL = "http://100.112.139.108:8020/buscar"
+RAG_V3_TOKEN = "6ac319869b1544b85b02d9745bc413566fd21bf9a13b9974573ebf7f8100b291"
 
 print(f"--- MIA HERRAMIENTAS INICIANDO ---")
 print(f"OCR: {'✅' if OCR_AVAILABLE else '❌'}")
 print(f"DOCX: {'✅' if DOCX_AVAILABLE else '❌'}")
-print(f"BM25: {'✅' if BM25_AVAILABLE else '❌'}")
 
-embeddings = OllamaEmbeddings(model="nomic-embed-text")
-
-# ============================================================================
-# INICIALIZACIÓN DE CHROMA + ÍNDICE BM25 (caché global)
-# ============================================================================
-
-vector_db = None
-_bm25_index = None
-_corpus_texts = None
-_corpus_metadatas = None
-
-def _inicializar_chroma():
+def _inicializar_chroma_DESACTIVADO():
     """Inicializa Chroma y construye índice BM25 en memoria."""
     global vector_db, _bm25_index, _corpus_texts, _corpus_metadatas
 
@@ -109,142 +84,62 @@ def _construir_bm25():
         _bm25_index = None
 
 
-# Inicializar al cargar el módulo
-_inicializar_chroma()
-
-
-# ============================================================================
-# MOTOR DE BÚSQUEDA HÍBRIDA (BM25 + SEMÁNTICO + RERANK)
-# ============================================================================
-
-def _tokenize(text: str) -> list:
-    return re.findall(r'\b\w+\b', text.lower())
-
-
-def _cosine_similarity(a, b):
-    return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b) + 1e-10))
-
-
-def _buscar_bm25(query: str, k: int = 15, parte: str = None) -> list:
-    """Búsqueda pura BM25. Ideal para definiciones, números exactos, términos técnicos."""
-    if _bm25_index is None or _corpus_texts is None:
-        return []
-
-    tokenized_query = _tokenize(query)
-    scores = _bm25_index.get_scores(tokenized_query)
-    ranked = sorted(enumerate(scores), key=lambda x: x[1], reverse=True)
-
-    results = []
-    for idx, score in ranked:
-        meta = _corpus_metadatas[idx]
-        if parte and meta.get('parte') != parte:
-            continue
-        results.append({
-            'text': _corpus_texts[idx],
-            'metadata': meta,
-            'bm25_score': float(score),
-            'index': idx
-        })
-        if len(results) >= k:
-            break
-    return results
-
-
-def _rerank_semantico(query: str, candidatos: list, k_final: int = 5) -> list:
-    """Re-ranquea candidatos BM25 usando embeddings semánticos."""
-    if not candidatos:
-        return []
-
-    texts = [c['text'] for c in candidatos]
-    query_emb = embeddings.embed_query(query)
-    doc_embs = embeddings.embed_documents(texts)
-
-    max_bm25 = max(c['bm25_score'] for c in candidatos) or 1.0
-
-    for i, cand in enumerate(candidatos):
-        sem_score = _cosine_similarity(query_emb, doc_embs[i])
-        bm25_norm = cand['bm25_score'] / max_bm25
-
-        cand['semantic_score'] = sem_score
-        cand['final_score'] = 0.6 * bm25_norm + 0.4 * sem_score
-
-    candidatos.sort(key=lambda x: x['final_score'], reverse=True)
-    return candidatos[:k_final]
-
-
-def _detectar_estrategia(query: str) -> str:
-    """
-    Detecta la mejor estrategia según el tipo de consulta.
-    - 'bm25': definiciones, números exactos, términos técnicos específicos
-    - 'rerank': procedimientos, medidas, planes, obligaciones
-    - 'semantico': conceptos vagos, preguntas abiertas
-    """
-    q = query.lower()
-
-    exactas = ['arqueo', 'tonelaje', '500', 'eslora', 'definición', 'ámbito',
-               'aplica', 'cuál', 'cuáles', 'qué es', 'tipos de', 'artículo',
-               'sección', 'capítulo', 'número', 'fecha', 'omi', 'imo', 'gt', 'dw',
-               'toneladas', 'metros', 'pies', 'longitud', 'manga', 'calado']
-
-    procedimientos = ['cómo', 'procedimiento', 'medida', 'paso', 'debe', 'deberá',
-                      'obligación', 'nivel de protección', 'plan de protección',
-                      'evaluación', 'control', 'acceso', 'registro', 'oficial',
-                      'declaración', 'certificado', 'inspección', 'auditoría',
-                      'riesgo', 'amenaza', 'vulnerabilidad', 'mitigación']
-
-    score_exacta = sum(1 for w in exactas if w in q)
-    score_proc = sum(1 for w in procedimientos if w in q)
-
-    if score_exacta > score_proc:
-        return 'bm25'
-    elif score_proc > 0:
-        return 'rerank'
+# Corpus local (mia_conocimiento) DESACTIVADO — agosto 2026.
+# Todas las consultas normativas (PBIP, legislación mexicana, ISM, MARPOL, etc.)
+# ahora se sirven desde el RAG v3 remoto en el Epyc/Sonora, vía RAG_V3_URL.
+# _inicializar_chroma() se deja definida por si se necesita reactivar.
+print("--- MIA HERRAMIENTAS: usando RAG v3 remoto (Sonora) ---")
+print(f"    Endpoint: {RAG_V3_URL}")
+try:
+    _test = requests.get(RAG_V3_URL.replace('/buscar', '/status'), timeout=5)
+    if _test.ok:
+        _status = _test.json()
+        print(f"    ✅ RAG remoto activo: {_status.get('chunks_totales', '?')} chunks indexados")
     else:
-        return 'semantico'
+        print(f"    ⚠️ RAG remoto respondió con estado {_test.status_code}")
+except Exception as _e:
+    print(f"    ❌ RAG remoto no disponible: {_e}")
 
+
+# ============================================================================
+# BÚSQUEDA PBIP — migrada al RAG v3 remoto (Epyc/Sonora), agosto 2026
+# ============================================================================
 
 def buscar_pbip_hibrido(query: str, k: int = 5, parte: str = None,
                         estrategia: str = 'auto') -> list[dict]:
     """
-    Motor de búsqueda híbrida completa.
-
-    Args:
-        query: Texto de búsqueda
-        k: Número de resultados finales
-        parte: Filtrar por 'A' o 'B' (None = ambas)
-        estrategia: 'auto', 'bm25', 'semantico', 'rerank'
-
-    Returns:
-        Lista de dicts con 'text', 'metadata', scores
+    Consulta el RAG v3 remoto. Se conserva el nombre y firma originales
+    (incluyendo 'parte' y 'estrategia', ya sin uso real) para no romper
+    a mia_core.py y test_hibrido.py, que importan esta función directamente.
+    Retorna list[{'text','metadata'}], mismo contrato que la versión local.
     """
-    if vector_db is None:
+    try:
+        resp = requests.post(
+            RAG_V3_URL,
+            json={"pregunta": query, "k": k},
+            headers={"Authorization": f"Bearer {RAG_V3_TOKEN}"},
+            timeout=30
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        resultados_raw = data.get("resultados", [])
+
+        resultados = []
+        for r in resultados_raw:
+            resultados.append({
+                "text": r.get("texto", ""),
+                "metadata": {
+                    "parte": "",
+                    "seccion": r.get("seccion") or r.get("documento", "PBIP"),
+                    "documento": r.get("documento", ""),
+                },
+                "final_score": r.get("score_rerank", 0.0),
+            })
+        return resultados
+
+    except Exception as e:
+        print(f"Error buscar_pbip_hibrido (RAG remoto): {e}")
         return []
-
-    if estrategia == 'auto':
-        estrategia = _detectar_estrategia(query)
-
-    if estrategia == 'bm25':
-        results = _buscar_bm25(query, k=k, parte=parte)
-        for r in results:
-            r['final_score'] = r['bm25_score']
-        return results
-
-    elif estrategia == 'semantico':
-        filter_dict = {'parte': parte} if parte else None
-        docs = vector_db.similarity_search(query, k=k, filter=filter_dict)
-        return [{
-            'text': doc.page_content,
-            'metadata': doc.metadata,
-            'bm25_score': 0.0,
-            'semantic_score': 0.0,
-            'final_score': 0.0
-        } for doc in docs]
-
-    elif estrategia == 'rerank':
-        candidatos = _buscar_bm25(query, k=15, parte=parte)
-        return _rerank_semantico(query, candidatos, k_final=k)
-
-    return []
 
 
 # ============================================================================
@@ -333,33 +228,46 @@ def extraer_texto_universal(ruta_archivo: str) -> str:
 
 def herramienta_consultar_pbip(tema: str, k: int = 5, parte: str = None) -> str:
     """
-    Consulta el Código PBIP usando búsqueda híbrida (BM25 + semántico + rerank).
+    Consulta el RAG marítimo v3 (Epyc/Sonora) — reranker multilingüe,
+    chunker corregido, corpus ampliado (PBIP, ISM, MARPOL, STCW, IMDG,
+    legislación mexicana). Reemplaza el motor local viejo (buscar_pbip_hibrido)
+    a partir de agosto 2026.
     Esta función es usada por:
       - mia_core.py (consultas del auditor por WhatsApp)
       - mia_documentos.py (análisis de documentos subidos por navieras)
     """
     try:
-        resultados = buscar_pbip_hibrido(tema, k=k, parte=parte, estrategia='auto')
+        resp = requests.post(
+            RAG_V3_URL,
+            json={"pregunta": tema, "k": k},
+            headers={"Authorization": f"Bearer {RAG_V3_TOKEN}"},
+            timeout=30
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        resultados = data.get("resultados", [])
 
         if not resultados:
             return f"No encontré información sobre '{tema}' en el código PBIP."
 
         lineas = []
         for r in resultados:
-            meta = r['metadata']
-            seccion = meta.get('seccion', 'PBIP')
-            parte_doc = meta.get('parte', '')
-            frag = " [FRAGMENTO]" if meta.get('es_fragmento') else ""
+            documento = r.get('documento', 'PBIP')
+            seccion = r.get('seccion') or ''
+            score = r.get('score_rerank', 0)
 
-            ref = f"Parte {parte_doc} | {seccion}{frag}"
-            if r.get('final_score', 0) > 0:
-                ref += f" (relevancia: {r['final_score']:.2f})"
+            ref = f"{documento}"
+            if seccion:
+                ref += f" | {seccion}"
+            ref += f" (relevancia: {score:.2f})"
 
-            contenido = r['text'][:1200] if len(r['text']) > 600 else r['text']
+            contenido = r['texto'][:1200] if len(r['texto']) > 600 else r['texto']
             lineas.append(f"[{ref}]\n{contenido}")
 
         return "\n\n---\n\n".join(lineas)
 
+    except requests.exceptions.RequestException as e:
+        return f"Error consultando PBIP (RAG remoto no disponible): {e}"
     except Exception as e:
         return f"Error consultando PBIP: {e}"
 
@@ -369,101 +277,38 @@ def herramienta_consultar_pbip(tema: str, k: int = 5, parte: str = None) -> str:
 # ============================================================================
 
 def buscar_legislacion(query: str, k: int = 6) -> list:
-    if vector_db is None:
-        return []
-    try:
-        q = query.lower()
-        archivo_filtro = None
-        if any(x in q for x in ["lncm", "navegaci", "comercio mar"]):
-            archivo_filtro = "LNCM.txt"
-        elif any(x in q for x in ["loapf", "administraci"]):
-            archivo_filtro = "LOAPF.txt"
-        elif any(x in q for x in ["risemar"]):
-            archivo_filtro = "RISEMAR.txt"
-
-        if archivo_filtro:
-            filtro = {"$and": [{"dominio": "legislacion_mexicana"}, {"archivo_original": archivo_filtro}]}
-        else:
-            filtro = {"dominio": "legislacion_mexicana"}
-
-        semanticos = vector_db.similarity_search(query, k=k, filter=filtro)
-        resultados = [{"text": r.page_content, "metadata": r.metadata} for r in semanticos]
-
-        if _bm25_index and _corpus_texts:
-            tokens = query.lower().split()
-            scores = _bm25_index.get_scores(tokens)
-            indices_leg = [
-                i for i, m in enumerate(_corpus_metadatas)
-                if m.get("dominio") == "legislacion_mexicana"
-                and (archivo_filtro is None or m.get("archivo_original") == archivo_filtro)
-            ]
-            top = sorted(indices_leg, key=lambda i: scores[i], reverse=True)[:k]
-            ids_ya = {r["text"][:50] for r in resultados}
-            for i in top:
-                texto = _corpus_texts[i]
-                if texto[:50] not in ids_ya and scores[i] > 0.5:
-                    resultados.append({"text": texto, "metadata": _corpus_metadatas[i]})
-
-        return resultados[:k]
-
-    except Exception as e:
-        print(f"Error busqueda legislacion: {e}")
-        return []
-
-def buscar_conocimiento(query: str, k: int = 8, dominio: str = None) -> list:
     """
-    Búsqueda semántica en todo el corpus MIA sin filtro de dominio.
-    dominio: None = busca todo | 'pbip' | 'legislacion_mexicana'
-    Ideal para documentos enviados por WhatsApp donde no sabes de antemano
-    si el contenido es PBIP, legal o mixto.
-    """
-    if vector_db is None:
-        print("⚠️ vector_db no inicializado")
-        return []
-    try:
-        filtro = {"dominio": dominio} if dominio else None
-        results = vector_db.similarity_search(query, k=k, filter=filtro)
-        return [{"text": r.page_content, "metadata": r.metadata} for r in results]
-    except Exception as e:
-        print(f"Error en búsqueda conocimiento: {e}")
-        return []
-
-
-def herramienta_consultar_conocimiento(tema: str, k: int = 8) -> str:
-    """
-    Consulta el corpus unificado MIA (PBIP + legislación).
-    Usada para análisis de documentos que llegan por WhatsApp —
-    el LLM recibe chunks con metadata de fuente y cita correctamente.
+    Migrado al RAG v3 remoto (Epyc/Sonora) — agosto 2026.
+    Mantiene el mismo contrato de retorno (list[{'text','metadata'}]) que
+    espera mia_core.py, para no romper _modo_consulta_legislacion.
     """
     try:
-        resultados = buscar_conocimiento(tema, k=k)
+        resp = requests.post(
+            RAG_V3_URL,
+            json={"pregunta": query, "k": k},
+            headers={"Authorization": f"Bearer {RAG_V3_TOKEN}"},
+            timeout=30
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        resultados_raw = data.get("resultados", [])
 
-        if not resultados:
-            return f"No encontré información sobre '{tema}' en la base de conocimiento."
-
-        lineas = []
-        for r in resultados:
-            meta = r['metadata']
-            dominio  = meta.get('dominio', 'desconocido')
-            fuente   = meta.get('fuente', 'Fuente desconocida')
-            articulo = meta.get('articulo', '')
-            seccion  = meta.get('seccion', '')
-            parte    = meta.get('parte', '')
-
-            if dominio == 'pbip':
-                ref = f"PBIP Parte {parte} | {seccion}"
-            elif dominio == 'legislacion_mexicana':
-                ref = f"{fuente} | Art. {articulo}" if articulo else fuente
-            else:
-                ref = fuente
-
-            contenido = r['text'][:1200] if len(r['text']) > 600 else r['text']
-            lineas.append(f"[{ref}]\n{contenido}")
-
-        return "\n\n---\n\n".join(lineas)
+        resultados = []
+        for r in resultados_raw:
+            resultados.append({
+                "text": r.get("texto", ""),
+                "metadata": {
+                    "fuente": r.get("documento", "Legislación"),
+                    "articulo": r.get("seccion") or "",
+                }
+            })
+        return resultados
 
     except Exception as e:
-        return f"Error consultando conocimiento: {e}"
+        print(f"Error busqueda legislacion (RAG remoto): {e}")
+        return []
+
+# (buscar_conocimiento y herramienta_consultar_conocimiento eliminadas — sin uso, ago 2026)
 
 
 # ============================================================================
