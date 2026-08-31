@@ -10,7 +10,8 @@ from .mia_herramientas import (
     herramienta_reporte_global,
     enviar_whatsapp_jid,
     buscar_pbip_hibrido,
-    buscar_legislacion
+    buscar_legislacion,
+    buscar_analisis_situacion
 )
 from .mia_documentos import herramienta_analizar_documento
 
@@ -67,12 +68,49 @@ REGLA DE ORO PARA CONSULTAS:
 """
 
 
+COMANDOS_GUARDAR_ANALISIS = {"/guardar", "🧠"}
+
+
+def _guardar_ultimo_analisis_compass(numero: str) -> bool:
+    """
+    Toma el último turno (usuario+COMPASS) de ConversacionMIA para ese número
+    y lo promueve a la memoria compartida de AnalisisSituacion (Epyc/Sonora).
+    Mismo patrón que /guardar en MIA 2.0 — una sola fuente de verdad.
+    """
+    from .models import ConversacionMIA
+    from .mia_herramientas import guardar_analisis_situacion
+
+    ultimo_mia = ConversacionMIA.objects.filter(
+        numero_whatsapp=numero, rol='mia'
+    ).order_by('-timestamp').first()
+    if not ultimo_mia:
+        return False
+
+    ultimo_user = ConversacionMIA.objects.filter(
+        numero_whatsapp=numero, rol='user', timestamp__lt=ultimo_mia.timestamp
+    ).order_by('-timestamp').first()
+    if not ultimo_user:
+        return False
+
+    return guardar_analisis_situacion(
+        descripcion=ultimo_user.contenido,
+        analisis=ultimo_mia.contenido,
+        tipo_analisis=ultimo_mia.intencion or "pbip_consulta",
+    )
+
+
 def procesar_input_mia(texto_usuario=None, documento_obj=None, numero_whatsapp=None, jid_remitente=None):
     """
     ÚNICO punto de entrada para MIA.
     """
     # 1. MEMORIA
     numero = numero_whatsapp or (jid_remitente.split('@')[0] if jid_remitente else "unknown")
+
+    if texto_usuario and texto_usuario.strip() in COMANDOS_GUARDAR_ANALISIS and numero:
+        guardado = _guardar_ultimo_analisis_compass(numero)
+        return ("🧠 Análisis guardado en memoria compartida. Servirá de referencia para consultas similares futuras."
+                if guardado else "⚠️ No encontré un análisis reciente de COMPASS para guardar.")
+
     contexto = obtener_contexto(numero) if numero else []
 
     # 2. CLASIFICAR
@@ -260,6 +298,17 @@ Responde SOLO con un JSON:
 def _modo_consulta_pbip(pregunta: str, entidades: dict, contexto: list) -> str:
     tema = entidades.get("tema_pbip") or pregunta
 
+    # Memoria de análisis: si ya se resolvió una pregunta muy similar antes
+    # y fue validada, se reutiliza directo — sin regenerar, sin riesgo de
+    # variabilidad del LLM.
+    memoria = buscar_analisis_situacion(pregunta)
+    if memoria.get("encontrado"):
+        analisis_guardado = memoria['analisis']
+        # El análisis guardado ya trae su propio encabezado "COMPASS - ..."
+        # Insertamos "(memoria)" justo después de ese encabezado, sin duplicarlo.
+        primera_linea, _, resto = analisis_guardado.partition('\n')
+        return f"{primera_linea} _(memoria)_\n{resto}"
+
     resultados = buscar_pbip_hibrido(tema, k=5, estrategia='auto')
 
     if not resultados:
@@ -295,9 +344,13 @@ INSTRUCCIONES CRÍTICAS:
 7. Si la información no está en los artículos, dilo claramente PERO sugiere dónde buscar
 8. Sé profesional pero cercano
 9. Formato WhatsApp: usa *negritas* para énfasis
+10. NUNCA inventes el significado de una sigla o acrónimo (OPB, OCPM, PFSO, etc.)
+    si no aparece definido en los artículos recuperados. Si la sigla no se explica
+    en el contenido de arriba, dilo explícitamente en vez de adivinar — muchas
+    siglas tienen significados distintos fuera del contexto marítimo/PBIP.
 
 FORMATO DE RESPUESTA:
-🤖 *MIA - CONSULTA PBIP*
+🧭 *COMPASS - CONSULTA PBIP*
 
 📜 *Artículos consultados:*
 [lista breve con referencias exactas]
@@ -345,7 +398,7 @@ PREGUNTA: {pregunta}
 Responde de forma natural y útil. Si los datos no responden exactamente la pregunta, indícalo y sugiere cómo obtener la información.
 
 FORMATO:
-🤖 *MIA - ESTADO*
+🧭 *COMPASS - ESTADO*
 
 {datos}
 
@@ -412,7 +465,7 @@ PREGUNTA: {pregunta}
 INSTRUCCIÓN: Busca en los fragmentos de arriba la respuesta. Copia el texto exacto del fragmento relevante. Si no está, di "No encontrado en los textos".
 
 FORMATO OBLIGATORIO:
-🤖 *MIA - CONSULTA LEGISLATIVA*
+🧭 *COMPASS - CONSULTA LEGISLATIVA*
 📜 *Fuente:* [nombre de la ley del fragmento relevante]
 📌 *Artículo:* [número del artículo del fragmento]
 💡 *Respuesta:* [respuesta en una oración]

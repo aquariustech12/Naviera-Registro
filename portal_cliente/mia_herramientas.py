@@ -34,6 +34,10 @@ from naviera_registro.models import Naviera, Buque, RequisitoBuque, PuntoPBIP, D
 RAG_V3_URL = "http://100.112.139.108:8020/buscar"
 RAG_V3_TOKEN = "6ac319869b1544b85b02d9745bc413566fd21bf9a13b9974573ebf7f8100b291"
 
+# Memoria de análisis de situaciones (MIA 2.0, Epyc/Sonora) — una sola fuente
+# de verdad compartida entre COMPASS y MIA 2.0, agosto 2026.
+ANALISIS_MEMORIA_URL = "http://100.112.139.108:8010/api/mia/analisis"
+
 print(f"--- MIA HERRAMIENTAS INICIANDO ---")
 print(f"OCR: {'✅' if OCR_AVAILABLE else '❌'}")
 print(f"DOCX: {'✅' if DOCX_AVAILABLE else '❌'}")
@@ -226,6 +230,50 @@ def extraer_texto_universal(ruta_archivo: str) -> str:
 # HERRAMIENTA CONSULTAR PBIP (VERSIÓN HÍBRIDA)
 # ============================================================================
 
+def buscar_analisis_situacion(descripcion: str) -> dict:
+    """
+    Consulta la memoria de análisis de situaciones (AnalisisSituacion en
+    MIA 2.0/Epyc) antes de generar una respuesta nueva. Si hay una situación
+    similar ya validada, se reutiliza directamente — evita regenerar y
+    elimina el riesgo de variabilidad/alucinación del LLM en preguntas
+    ya resueltas antes.
+    Retorna {'encontrado': bool, 'analisis': str, 'similitud': float, ...}
+    """
+    try:
+        resp = requests.post(
+            f"{ANALISIS_MEMORIA_URL}/buscar",
+            json={"descripcion": descripcion},
+            timeout=10
+        )
+        resp.raise_for_status()
+        return resp.json()
+    except Exception as e:
+        print(f"Error consultando memoria de análisis: {e}")
+        return {"encontrado": False}
+
+
+def guardar_analisis_situacion(descripcion: str, analisis: str, tipo_analisis: str = "pbip_consulta",
+                                 normas_citadas: list = None) -> bool:
+    """Guarda un análisis validado en la memoria compartida (AnalisisSituacion)."""
+    try:
+        resp = requests.post(
+            f"{ANALISIS_MEMORIA_URL}/guardar",
+            json={
+                "descripcion": descripcion,
+                "analisis": analisis,
+                "tipo_analisis": tipo_analisis,
+                "normas_citadas": normas_citadas,
+                "origen": "compass",
+            },
+            timeout=10
+        )
+        resp.raise_for_status()
+        return resp.json().get("guardado", False)
+    except Exception as e:
+        print(f"Error guardando en memoria de análisis: {e}")
+        return False
+
+
 def herramienta_consultar_pbip(tema: str, k: int = 5, parte: str = None) -> str:
     """
     Consulta el RAG marítimo v3 (Epyc/Sonora) — reranker multilingüe,
@@ -373,7 +421,7 @@ def herramienta_reporte_global() -> str:
     total_pbip = PuntoPBIP.objects.count()
     total_admin = 6
 
-    lineas = ["🤖 *MIA - ESTADO GLOBAL*\n"]
+    lineas = ["🧭 *COMPASS - ESTADO GLOBAL*\n"]
 
     for buque in buques:
         pbip_subidos = RequisitoBuque.objects.filter(
