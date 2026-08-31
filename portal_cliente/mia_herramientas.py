@@ -122,7 +122,7 @@ def buscar_pbip_hibrido(query: str, k: int = 5, parte: str = None,
             RAG_V3_URL,
             json={"pregunta": query, "k": k},
             headers={"Authorization": f"Bearer {RAG_V3_TOKEN}"},
-            timeout=30
+            timeout=60
         )
         resp.raise_for_status()
         data = resp.json()
@@ -243,7 +243,7 @@ def buscar_analisis_situacion(descripcion: str) -> dict:
         resp = requests.post(
             f"{ANALISIS_MEMORIA_URL}/buscar",
             json={"descripcion": descripcion},
-            timeout=10
+            timeout=60
         )
         resp.raise_for_status()
         return resp.json()
@@ -265,7 +265,7 @@ def guardar_analisis_situacion(descripcion: str, analisis: str, tipo_analisis: s
                 "normas_citadas": normas_citadas,
                 "origen": "compass",
             },
-            timeout=10
+            timeout=60
         )
         resp.raise_for_status()
         return resp.json().get("guardado", False)
@@ -289,7 +289,7 @@ def herramienta_consultar_pbip(tema: str, k: int = 5, parte: str = None) -> str:
             RAG_V3_URL,
             json={"pregunta": tema, "k": k},
             headers={"Authorization": f"Bearer {RAG_V3_TOKEN}"},
-            timeout=30
+            timeout=60
         )
         resp.raise_for_status()
         data = resp.json()
@@ -335,7 +335,7 @@ def buscar_legislacion(query: str, k: int = 6) -> list:
             RAG_V3_URL,
             json={"pregunta": query, "k": k},
             headers={"Authorization": f"Bearer {RAG_V3_TOKEN}"},
-            timeout=30
+            timeout=60
         )
         resp.raise_for_status()
         data = resp.json()
@@ -480,7 +480,7 @@ def enviar_whatsapp_jid(jid: str, mensaje: str) -> bool:
         requests.post(
             "http://100.112.139.108:9000/enviar",
             json={"jid": jid, "mensaje": mensaje},
-            timeout=10
+            timeout=60
         )
     except:
         pass
@@ -493,7 +493,7 @@ def enviar_whatsapp_numero(numero: str, mensaje: str) -> bool:
         requests.post(
             "http://100.112.139.108:9000/enviar",
             json={"numero": numero, "mensaje": mensaje},
-            timeout=10
+            timeout=60
         )
         return True
     except Exception as e:
