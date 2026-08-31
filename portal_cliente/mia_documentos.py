@@ -79,7 +79,7 @@ def herramienta_analizar_documento(documento_obj, jid_remitente=None):
         es_admin = any(key in nombre_doc.lower() for key in ADMIN_KEYWORDS)
 
         if es_admin:
-            mensaje = f"""🤖 *MIA - REGISTRO*
+            mensaje = f"""🧭 *COMPASS - REGISTRO*
 📄 *Documento:* {nombre_doc}
 🏷️ *Tipo:* Administrativo
 🔍 *Análisis:* No requiere evaluación técnica.
@@ -114,9 +114,15 @@ INSTRUCCIONES CRÍTICAS:
    - NO CUMPLE solo si faltan datos esenciales o está vencido
    - NO inventes requisitos que no están en los artículos recuperados
 5. Cita SOLO artículos que aparezcan en el MARCO LEGAL PBIP de arriba
+6. El MARCO LEGAL PBIP trae un score de relevancia entre paréntesis para cada
+   fragmento. Si NINGÚN fragmento tiene relevancia mayor a 0.3, significa que
+   la base normativa NO tiene contenido realmente aplicable a este documento —
+   en ese caso escribe "Sin fundamento normativo específico disponible" en
+   Base Legal, en vez de citar fragmentos de baja relevancia solo por tener
+   algo que poner. Una cita irrelevante es peor que no citar nada.
 
 FORMATO OBLIGATORIO:
-🤖 *MIA - AUDITORÍA*
+🧭 *COMPASS - AUDITORÍA*
 📄 *Documento:* {nombre_doc}
 🏷️ *Tipo:* [tipo exacto]
 👤 *Titular(es):* [todos los nombres encontrados, separados por coma, o "No encontrado"]
