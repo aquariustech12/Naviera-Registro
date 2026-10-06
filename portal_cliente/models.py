@@ -295,14 +295,45 @@ def procesar_aprobacion_y_activar_portal(sender, instance, created, **kwargs):
 
 
 @receiver(post_delete, sender=DocumentoEntregable)
-def notificar_eliminacion_cotizacion(sender, instance, **kwargs):
-    if instance.tipo == 'COTIZACION':
-        try:
-            enviar_whatsapp_jid(JULIAN_JID, (
-                f"🗑️ *MIA - COTIZACIÓN ELIMINADA*\n\n"
-                f"📄 {getattr(instance, 'nombre_documento', None) or 'COTIZACION'}\n"
-                f"🏢 {instance.naviera.nombre_empresa}\n"
-                f"🚢 {instance.buque.nombre_buque if instance.buque else 'N/A'}"
-            ))
-        except Exception as e:
-            print(f"Error notificando eliminación: {e}")
+def notificar_eliminacion_entregable(sender, instance, **kwargs):
+    """
+    Notifica por WhatsApp la eliminación de CUALQUIER tipo de DocumentoEntregable
+    (Cotización, Informe PBIP Terminado, Factura, Comprobante de Pago, etc.),
+    no solo COTIZACION como antes.
+    """
+    try:
+        enviar_whatsapp_jid(JULIAN_JID, (
+            f"🗑️ *MIA - DOCUMENTO ENTREGABLE ELIMINADO*\n\n"
+            f"📄 {getattr(instance, 'nombre_documento', None) or instance.tipo}\n"
+            f"🏷️ Tipo: {instance.get_tipo_display() if hasattr(instance, 'get_tipo_display') else instance.tipo}\n"
+            f"🏢 {instance.naviera.nombre_empresa}\n"
+            f"🚢 {instance.buque.nombre_buque if instance.buque else 'N/A'}"
+        ))
+    except Exception as e:
+        print(f"Error notificando eliminación entregable: {e}")
+
+
+@receiver(post_save, sender=DocumentoEntregable)
+def notificar_alta_entregable(sender, instance, created, **kwargs):
+    """
+    Notifica por WhatsApp cuando se AGREGA un nuevo DocumentoEntregable:
+    - A Julian, siempre (alerta interna).
+    - Al cliente (naviera), solo si tiene telefono_contacto y
+      notificaciones_activas=True (respeta su preferencia).
+    """
+    if not created:
+        return
+
+    tipo_display = instance.get_tipo_display() if hasattr(instance, 'get_tipo_display') else instance.tipo
+    nombre_doc = getattr(instance, 'nombre_documento', None) or instance.tipo
+
+    try:
+        enviar_whatsapp_jid(JULIAN_JID, (
+            f"📤 *MIA - DOCUMENTO ENTREGABLE AGREGADO*\n\n"
+            f"📄 {nombre_doc}\n"
+            f"🏷️ Tipo: {tipo_display}\n"
+            f"🏢 {instance.naviera.nombre_empresa}\n"
+            f"🚢 {instance.buque.nombre_buque if instance.buque else 'N/A'}"
+        ))
+    except Exception as e:
+        print(f"Error notificando alta entregable (Julian): {e}")
