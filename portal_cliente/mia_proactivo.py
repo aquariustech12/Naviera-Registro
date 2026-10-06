@@ -103,8 +103,7 @@ def _enviar_whatsapp_cliente(naviera, mensaje):
     try:
         numero = _normalizar_numero(naviera.telefono_contacto)
         jid = f"{numero}@s.whatsapp.net"
-        enviar_whatsapp_jid(jid, mensaje)
-        return True
+        return enviar_whatsapp_jid(jid, mensaje)
     except Exception as e:
         print(f"  ❌ Error WhatsApp a {naviera.telefono_contacto}: {e}")
         return False
@@ -132,6 +131,7 @@ def _notificar_cliente(naviera, asunto_email, cuerpo_email, mensaje_whatsapp):
 def job_alta_navieras():
     """Revisa navieras con alta incompleta. Envía WhatsApp+Email al cliente."""
     print(f"\n🔔 [{timezone.now()}] job_alta_navieras ejecutando...")
+    VENTANA_ALTA_DIAS = 21  # tope de recordatorios de alta, desde Julian (5/oct/2026)
 
     # NUEVO: solo navieras con notificaciones_activas=True. Esto respeta el
     # apagado manual (interruptor maestro) sin tocar el historial existente.
@@ -152,6 +152,23 @@ def job_alta_navieras():
 
         faltan = 6 - admin_count
         if faltan == 0:
+            continue
+
+        if dias_registro > VENTANA_ALTA_DIAS:
+            if not AlertaProactiva.objects.filter(naviera=naviera, tipo_alerta='VENTANA_ALTA_VENCIDA').exists():
+                msg_vencida = (
+                    f"⏰ *MIA - VENTANA DE ALTA VENCIDA*\n\n"
+                    f"🏢 *{naviera.nombre_empresa}*\n"
+                    f"📋 Faltan: {faltan}/6 documentos administrativos\n"
+                    f"📅 Días registrada: {dias_registro} (límite: {VENTANA_ALTA_DIAS})\n\n"
+                    f"MIA deja de recordarle automáticamente. Requiere seguimiento manual si se quiere completar el alta."
+                )
+                enviar_whatsapp_jid(JULIAN_JID, msg_vencida)
+                enviar_whatsapp_jid(FINANZAS_JID, msg_vencida)
+                _registrar_alerta(naviera, 'VENTANA_ALTA_VENCIDA', msg_vencida, 'whatsapp', exito=True)
+                print(f"  ⏰ Ventana vencida (aviso único): {naviera.nombre_empresa}")
+            else:
+                print(f"  ⏭️ Ventana vencida, ya avisado: {naviera.nombre_empresa}")
             continue
 
         if _ya_se_envio_hoy(naviera, 'ALTA_INCOMPLETA'):
@@ -380,10 +397,12 @@ def iniciar_scheduler():
         job_defaults=job_defaults
     )
 
-    scheduler.add_job(job_resumen_matutino,                   CronTrigger(hour=14, minute=0), id='resumen',                   replace_existing=True)
-    scheduler.add_job(job_alta_navieras,                      CronTrigger(hour=15, minute=0), id='altas',                     replace_existing=True)
-    scheduler.add_job(job_docs_pbip_faltantes,                CronTrigger(hour=16, minute=0), id='pbip',                      replace_existing=True)
-    scheduler.add_job(job_recordatorio_cotizaciones_por_hora, CronTrigger(minute=0),          id='recordatorio_cotizaciones',  replace_existing=True)
+    # day_of_week='mon-fri' — no molestar a navieras/clientes en fin de semana
+    # (decisión de Julian, 31/ago/2026, tras quejas de clientes por mensajes en sábado/domingo)
+    scheduler.add_job(job_resumen_matutino,                   CronTrigger(hour=14, minute=0, day_of_week='mon-fri'), id='resumen',                   replace_existing=True)
+    scheduler.add_job(job_alta_navieras,                      CronTrigger(hour=15, minute=0, day_of_week='mon-fri'), id='altas',                     replace_existing=True)
+    scheduler.add_job(job_docs_pbip_faltantes,                CronTrigger(hour=16, minute=0, day_of_week='mon-fri'), id='pbip',                      replace_existing=True)
+    scheduler.add_job(job_recordatorio_cotizaciones_por_hora, CronTrigger(minute=0,          day_of_week='mon-fri'), id='recordatorio_cotizaciones',  replace_existing=True)
 
     scheduler.start()
     print(f"🚀 MIA Proactivo v4 iniciado. Jobs: {len(scheduler.get_jobs())}")
