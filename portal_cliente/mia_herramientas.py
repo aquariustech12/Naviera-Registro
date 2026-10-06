@@ -151,18 +151,20 @@ def buscar_pbip_hibrido(query: str, k: int = 5, parte: str = None,
 # ============================================================================
 
 def consultar_ollama(prompt: str, temperature: float = 0.2, num_ctx: int = 16384) -> str:
-    url = "http://localhost:11434/api/generate"
+    url = "http://100.112.139.108:8092/v1/chat/completions"
     payload = {
-        "model": "qwen2.5:7b-instruct-q4_K_M",
-        "prompt": prompt,
+        "model": "bartowski/Qwen_Qwen3.6-27B-GGUF",
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": temperature,
         "stream": False,
-        "options": {"num_ctx": num_ctx, "temperature": temperature, "num_gpu": 99}
     }
     try:
         r = requests.post(url, json=payload, timeout=600)
-        return r.json().get('response', 'Sin respuesta')
+        r.raise_for_status()
+        data = r.json()
+        return data["choices"][0]["message"].get("content", "Sin respuesta")
     except requests.exceptions.Timeout:
-        return "⏱️ Error IA: El modelo tardó demasiado en responder. Intenta con una pregunta más corta o verifica que Ollama no esté sobrecargado."
+        return "⏱️ Error IA: El modelo tardó demasiado en responder. Intenta con una pregunta más corta o verifica que el servidor de Sonora no esté sobrecargado."
     except Exception as e:
         return f"Error IA: {e}"
 
@@ -475,32 +477,31 @@ def herramienta_reporte_global() -> str:
 def enviar_whatsapp_jid(jid: str, mensaje: str) -> bool:
     if '@' not in jid:
         jid = f"{jid}@s.whatsapp.net"
-
     try:
-        requests.post(
+        r = requests.post(
             "http://100.112.139.108:9000/enviar",
             json={"jid": jid, "mensaje": mensaje},
             timeout=60
         )
-    except:
-        pass
-
-    return True
+        r.raise_for_status()
+        return True
+    except Exception as e:
+        print(f"❌ Error enviando WhatsApp a {jid}: {e}")
+        return False
 
 
 def enviar_whatsapp_numero(numero: str, mensaje: str) -> bool:
     try:
-        requests.post(
+        r = requests.post(
             "http://100.112.139.108:9000/enviar",
             json={"numero": numero, "mensaje": mensaje},
             timeout=60
         )
+        r.raise_for_status()
         return True
     except Exception as e:
         print(f"❌ Error WhatsApp: {e}")
         return False
-
-# Agregar a mia_herramientas.py
 
 def enviar_opr_notificacion(jid: str, mensaje: str) -> bool:
     """Envía notificación por OPR Gateway (segundo Baileys)."""
