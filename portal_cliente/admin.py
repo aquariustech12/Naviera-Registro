@@ -152,7 +152,7 @@ class TarifarioGMPAdmin(admin.ModelAdmin):
 def _regenerar_pdf_cotizaciones(modeladmin, request, queryset, avisar):
     from django.contrib import messages as _messages
     from .cotizacion_pdf import regenerar_pdf_cotizacion
-    from .models import enviar_whatsapp_jid
+    from .models import enviar_whatsapp_jid, JULIAN_JID
 
     for cot in queryset:
         if cot.costo_unitario is None or cot.iva is None or cot.total is None:
@@ -187,6 +187,17 @@ def _regenerar_pdf_cotizaciones(modeladmin, request, queryset, avisar):
                 msg += " Cliente avisado por WhatsApp." if ok else " No se pudo avisar al cliente por WhatsApp."
             else:
                 msg += " La naviera no tiene telefono de contacto: no se aviso."
+        try:
+            enviar_whatsapp_jid(JULIAN_JID, (
+                f"🔄 *MIA - COTIZACIÓN REGENERADA*\n\n"
+                f"🏢 {cot.naviera.nombre_empresa}\n"
+                f"🚢 {cot.buque.nombre_buque}\n"
+                f"💰 Subtotal ${cot.costo_unitario:,.2f} | IVA ${cot.iva:,.2f} | Total ${cot.total:,.2f} MXN\n"
+                f"👤 Por: {request.user}\n"
+                f"ℹ️ {msg}"
+            ))
+        except Exception as exc:
+            print(f"Error WA Julian (regenerar cotizacion): {exc}")
         modeladmin.message_user(request, msg, _messages.SUCCESS)
 
 
