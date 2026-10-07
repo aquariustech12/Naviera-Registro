@@ -147,7 +147,7 @@ def portal_cliente(request):
         except DocumentoEntregable.DoesNotExist:
             buque.informe_pbip = None
 
-        buque.propuesta_economica = DocumentoEntregable.objects.filter(naviera=naviera, buque=buque, tipo='COTIZACION').first()
+        buque.propuesta_economica = DocumentoEntregable.objects.filter(naviera=naviera, buque=buque, tipo='COTIZACION').order_by('-secuencia', '-id').first()
 
     if naviera:
         factura = DocumentoEntregable.objects.filter(
@@ -221,6 +221,16 @@ def agregar_buque(request):
                 OMI=omi,
                 metodo_pago=metodo_pago
             )
+            try:
+                msg_buque = (
+                    f"🚢 *MIA - NUEVO BUQUE REGISTRADO*\n\n"
+                    f"🏢 *Naviera:* {request.user.naviera.nombre_empresa}\n"
+                    f"🚢 *Buque:* {nombre} (OMI: {omi})\n"
+                    f"💳 *Método de pago:* {metodo_pago}"
+                )
+                threading.Thread(target=enviar_whatsapp_jid, args=(JULIAN_JID, msg_buque), daemon=True).start()
+            except Exception as e:
+                print(f"Error notificando alta de buque: {e}")
             messages.success(request, f'Buque "{nombre}" registrado.')
     return redirect('portal_cliente')
 
@@ -328,11 +338,16 @@ def registrar_formulario_fc01(request):
                     iva = costos['iva']
                     total = costos['total']
                 except ValueError:
-                    # Contingencia absoluta si la base de datos está vacía
+                    # Sin tarifa en la BD: respaldo con el tarifario del código.
+                    # Si tampoco existe, la cotización queda sin precio para capturarlo en el admin.
                     from decimal import Decimal
-                    subtotal = Decimal('115000.00')
-                    iva = subtotal * Decimal('0.16')
-                    total = subtotal + iva
+                    try:
+                        from .tarifario import TARIFARIO_GMP
+                        subtotal = Decimal(str(TARIFARIO_GMP[tipo_servicio][rango_buque]['2026']))
+                        iva = subtotal * Decimal('0.16')
+                        total = subtotal + iva
+                    except KeyError:
+                        subtotal = iva = total = None
 
             # 5. CREAR EL OBJETO COTIZACION PENDIENTE EN LA BD
             cotizacion = CotizacionPendiente.objects.create(
@@ -370,48 +385,35 @@ def registrar_formulario_fc01(request):
             if hasattr(requisito_fc01, 'archivo'):
                 requisito_fc01.archivo.save(nombre_pdf_fc01, ContentFile(pdf_form_bytes), save=True)
 
-            # 7. GENERAR PDF DE LA COTIZACIÓN COMERCIAL DESDE TU TEMPLATE
-            html_cot_string = render_to_string('cotizacion_propuesta.html', {
-                'naviera': request.user.naviera,
-                'buque': buque,
-                'cotizacion': cotizacion,
-                'subtotal': subtotal,
-                'iva': iva,
-                'total': total,
-                'fecha': datos_formulario['fecha_solicitud'],
-                'vigencia': (timezone.now() + timezone.timedelta(days=30)).strftime('%d/%m/%Y'),
-            })
-            pdf_cot_bytes = HTML(string=html_cot_string).write_pdf()
+            # 7. LA COTIZACIÓN QUEDA RETENIDA EN BORRADOR HASTA QUE JULIAN LA APRUEBE EN EL ADMIN.
+            #    Al pasar a 'aprobada', la señal procesar_aprobacion_y_activar_portal genera el PDF,
+            #    crea el entregable (que dispara el correo) y avisa al cliente. Aquí NO se crea ningún entregable.
 
-            nombre_pdf_cot = f"FGMP_PE_01_COTIZACION_{buque.nombre_buque.replace(' ', '_')}_{cotizacion.id}.pdf"
-            entregable = DocumentoEntregable.objects.create(
-                naviera=request.user.naviera,
-                buque=buque,
-                tipo='COTIZACION',
-            )
-            if hasattr(entregable, 'archivo'):
-                entregable.archivo.save(nombre_pdf_cot, ContentFile(pdf_cot_bytes), save=True)
-
-            # Relacionamos el documento generado en la cotización pendiente
-            cotizacion.documento_generado = entregable
-            cotizacion.save()
-
-            # 8. RESPONDER ASÍNCRONAMENTE A TU WHATSAPP CON MIA
+            # 8. AVISAR A JULIAN
             def notificar_mia_completa():
                 try:
+                    if total is None:
+                        linea_costo = "💰 *Costo:* SIN TARIFA — captúralo a mano en el admin\n"
+                    else:
+                        linea_costo = (
+                            f"💰 *Subtotal:* ${subtotal:,.2f} MXN\n"
+                            f"➕ *IVA (16%):* ${iva:,.2f} MXN\n"
+                            f"💵 *Total:* ${total:,.2f} MXN\n"
+                        )
+                    aviso_eslora = ""
+                    if not eslora_buque:
+                        aviso_eslora = "\n⚠️ *Eslora no capturada:* el rango se asumió PEQUEÑO. Verifícalo antes de aprobar.\n"
                     msg = (
-                        f"🏢 *MIA - COTIZACIÓN INTEGRADA Y PROCESADA*\n\n"
-                        f"La naviera *{request.user.naviera.nombre_empresa}* ha completado su formulario web con éxito.\n\n"
+                        f"📝 *MIA - COTIZACIÓN PENDIENTE DE APROBAR*\n\n"
+                        f"La naviera *{request.user.naviera.nombre_empresa}* completó su formulario web.\n\n"
                         f"🚢 *Buque:* {buque.nombre_buque} [Eslora: {eslora_buque}m]\n"
-                        f"📊 *Clasificación Rango:* {rango_buque.upper()}\n"
+                        f"📊 *Rango:* {rango_buque.upper()}\n"
                         f"🛠️ *Servicio:* {tipo_servicio.upper()}\n"
-                        f"💰 *Subtotal:* ${subtotal:,.2f} MXN\n"
-                        f"➕ *IVA (16%):* ${iva:,.2f} MXN\n"
-                        f"💵 *Total:* ${total:,.2f} MXN\n\n"
-                        f"📄 *PDF Formulario:* Guardado en Requisitos Buque.\n"
-                        f"📄 *PDF Cotización:* Listo en Documentos Entregables.\n"
+                        f"{linea_costo}{aviso_eslora}\n"
+                        f"📄 *Formulario FC-01:* guardado en Requisitos del Buque.\n"
+                        f"⏸️ La cotización NO se ha enviado al cliente.\n"
                         f"🆔 *ID Cotización:* {cotizacion.id}\n\n"
-                        f"🔗 *Gestionar en Admin:* https://portal.maritimesecuritymx.com/admin/portal_cliente/cotizacionpendiente/{cotizacion.id}/change/"
+                        f"🔗 *Revisar y aprobar:* https://portal.maritimesecuritymx.com/admin/portal_cliente/cotizacionpendiente/{cotizacion.id}/change/"
                     )
                     enviar_whatsapp_jid(JULIAN_JID, msg)
                 except Exception as wa_err:
@@ -419,7 +421,7 @@ def registrar_formulario_fc01(request):
 
             threading.Thread(target=notificar_mia_completa, daemon=True).start()
 
-            messages.success(request, "El trámite se completó correctamente. Tus documentos PDF oficiales ya están listos en el portal.")
+            messages.success(request, "Recibimos tu formulario. Tu propuesta económica estará disponible en el portal en cuanto sea revisada y aprobada.")
             return redirect('portal_cliente')
 
         except Exception as e:

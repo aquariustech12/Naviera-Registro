@@ -1,6 +1,7 @@
 # portal_cliente/admin.py
 
 import os
+from decimal import Decimal
 from django.contrib import admin
 from django.urls import path
 from django.shortcuts import get_object_or_404, redirect
@@ -31,10 +32,9 @@ class CotizacionPendienteAdmin(admin.ModelAdmin):
             'fields': ('tipo_servicio', 'rango_buque', 'notas_auditor'),
             'description': 'Seleccione el tipo de servicio y clasificación del buque'
         }),
-        ('Costos Calculados', {
+        ('Costos (editables: úsalos para aplicar descuentos)', {
             'fields': ('costo_unitario', 'iva', 'total'),
-            'classes': ('collapse',),
-            'description': 'Se calcula automáticamente al aprobar'
+            'description': 'Al cambiar el costo unitario, el IVA y el total se recalculan solos, salvo que los captures a mano.'
         }),
         ('Estado', {
             'fields': ('estado', 'fecha_aprobacion', 'documento_generado'),
@@ -42,18 +42,27 @@ class CotizacionPendienteAdmin(admin.ModelAdmin):
         }),
     )
 
-    readonly_fields = ['costo_unitario', 'iva', 'total', 'fecha_creacion', 'fecha_aprobacion', 'documento_generado']
+    readonly_fields = ['fecha_creacion', 'fecha_aprobacion', 'documento_generado']
 
     def save_model(self, request, obj, form, change):
-        """Recalcular costos siempre que cambie tipo_servicio o rango_buque."""
-        if change and ('tipo_servicio' in form.changed_data or 'rango_buque' in form.changed_data):
-            try:
-                costos = calcular_costo_cotizacion(obj.tipo_servicio, obj.rango_buque)
-                obj.costo_unitario = costos['costo_unitario']
-                obj.iva            = costos['iva']
-                obj.total          = costos['total']
-            except Exception as e:
-                self.message_user(request, f"Error recalculando costos: {e}", level='error')
+        """Costos editables. Si cambia tipo/rango (sin tocar costos) se recalculan desde la tarifa;
+        si cambia solo el costo unitario, IVA y total se recalculan; lo capturado a mano se respeta."""
+        if change:
+            cambios = set(form.changed_data)
+            costos_tocados = cambios & {'costo_unitario', 'iva', 'total'}
+            if ('tipo_servicio' in cambios or 'rango_buque' in cambios) and not costos_tocados \
+                    and obj.tipo_servicio and obj.rango_buque:
+                try:
+                    costos = calcular_costo_cotizacion(obj.tipo_servicio, obj.rango_buque)
+                    obj.costo_unitario = costos['costo_unitario']
+                    obj.iva            = costos['iva']
+                    obj.total          = costos['total']
+                except Exception as e:
+                    self.message_user(request, f"Error recalculando costos: {e}", level='error')
+            elif 'costo_unitario' in cambios and not ({'iva', 'total'} & cambios) \
+                    and obj.costo_unitario is not None:
+                obj.iva   = (obj.costo_unitario * Decimal('0.16')).quantize(Decimal('0.01'))
+                obj.total = obj.costo_unitario + obj.iva
 
         super().save_model(request, obj, form, change)
 
@@ -68,48 +77,56 @@ class CotizacionPendienteAdmin(admin.ModelAdmin):
         ]
         return custom_urls + urls
 
-    def aprobar_cotizacion(self, request, cotizacion_id):
-        """Vista para aprobar cotización y generar PDF."""
-        cotizacion = get_object_or_404(CotizacionPendiente, id=cotizacion_id)
-
+    def _aprobar(self, request, cotizacion):
+        """Marca la cotización como aprobada. La señal procesar_aprobacion_y_activar_portal genera
+        el PDF, crea el entregable y avisa al cliente. Devuelve un texto de error o None."""
         if cotizacion.estado != 'borrador':
-            messages.error(request, f"La cotización ya está {cotizacion.get_estado_display()}")
-            return redirect('admin:portal_cliente_cotizacionpendiente_change', cotizacion_id)
-
+            return f"La cotización ya está {cotizacion.get_estado_display()}"
         if not cotizacion.tipo_servicio or not cotizacion.rango_buque:
-            messages.error(request, "Debe seleccionar tipo de servicio y rango de buque antes de aprobar")
-            return redirect('admin:portal_cliente_cotizacionpendiente_change', cotizacion_id)
+            return "Debe seleccionar tipo de servicio y rango de buque antes de aprobar"
+        if cotizacion.costo_unitario is None or cotizacion.iva is None or cotizacion.total is None:
+            return "Capture costo unitario, IVA y total antes de aprobar"
 
-        try:
-            costos = calcular_costo_cotizacion(cotizacion.tipo_servicio, cotizacion.rango_buque)
-            cotizacion.costo_unitario = costos['costo_unitario']
-            cotizacion.iva            = costos['iva']
-            cotizacion.total          = costos['total']
+        cotizacion.estado           = 'aprobada'
+        cotizacion.fecha_aprobacion = timezone.now()
+        cotizacion.save()
 
-            ruta_pdf = generar_cotizacion_pdf(cotizacion)
+        msg = (
+            f"✅ *COTIZACIÓN APROBADA*\n\n"
+            f"🏢 *Naviera:* {cotizacion.naviera.nombre_empresa}\n"
+            f"🚢 *Buque:* {cotizacion.buque.nombre_buque}\n"
+            f"📄 *Servicio:* {cotizacion.get_tipo_servicio_display()}\n"
+            f"📊 *Rango:* {cotizacion.get_rango_buque_display()}\n"
+            f"💰 *Total:* ${cotizacion.total:,.2f}\n\n"
+            f"El PDF se está generando y se enviará al cliente."
+        )
+        enviar_whatsapp_jid(JULIAN_JID, msg)
+        enviar_whatsapp_jid(FINANZAS_JID, msg)
+        return None
 
-            cotizacion.estado           = 'aprobada'
-            cotizacion.fecha_aprobacion = timezone.now()
-            cotizacion.save()
-
-            msg = (
-                f"✅ *COTIZACIÓN APROBADA*\n\n"
-                f"🏢 *Naviera:* {cotizacion.naviera.nombre_empresa}\n"
-                f"🚢 *Buque:* {cotizacion.buque.nombre_buque}\n"
-                f"📄 *Servicio:* {cotizacion.get_tipo_servicio_display()}\n"
-                f"📊 *Rango:* {cotizacion.get_rango_buque_display()}\n"
-                f"💰 *Total:* ${cotizacion.total}\n\n"
-                f"PDF generado y disponible en portal."
-            )
-            enviar_whatsapp_jid(JULIAN_JID, msg)
-            enviar_whatsapp_jid(FINANZAS_JID, msg)
-
-            messages.success(request, f"Cotización aprobada. PDF generado: {os.path.basename(ruta_pdf)}")
-
-        except Exception as e:
-            messages.error(request, f"Error generando cotización: {str(e)}")
-
+    def aprobar_cotizacion(self, request, cotizacion_id):
+        """Vista del botón Aprobar."""
+        cotizacion = get_object_or_404(CotizacionPendiente, id=cotizacion_id)
+        error = self._aprobar(request, cotizacion)
+        if error:
+            messages.error(request, error)
+        else:
+            messages.success(request, "Cotización aprobada. El PDF se genera y se envía al cliente en unos segundos.")
         return redirect('admin:portal_cliente_cotizacionpendiente_change', cotizacion_id)
+
+    actions = ['aprobar_y_enviar']
+
+    def aprobar_y_enviar(self, request, queryset):
+        aprobadas = 0
+        for cotizacion in queryset:
+            error = self._aprobar(request, cotizacion)
+            if error:
+                self.message_user(request, f"Cotización {cotizacion.id}: {error}", level=messages.WARNING)
+            else:
+                aprobadas += 1
+        if aprobadas:
+            self.message_user(request, f"{aprobadas} cotización(es) aprobada(s). Los PDF se generan y se envían en segundos.")
+    aprobar_y_enviar.short_description = "Aprobar y enviar al cliente"
 
     def changeform_view(self, request, object_id=None, form_url='', extra_context=None):
         """Agregar botón de aprobar en la vista de edición."""
@@ -127,3 +144,64 @@ class TarifarioGMPAdmin(admin.ModelAdmin):
     # CORREGIDO: 'año' → 'anio' (nombre real del campo en el modelo)
     list_display = ['tipo_servicio', 'rango_buque', 'anio', 'costo_base']
     list_filter  = ['tipo_servicio', 'rango_buque', 'anio']
+
+
+# ---------------------------------------------------------------------------
+# Regenerar el PDF de una cotizacion (aprobada o no) desde los campos del admin
+# ---------------------------------------------------------------------------
+def _regenerar_pdf_cotizaciones(modeladmin, request, queryset, avisar):
+    from django.contrib import messages as _messages
+    from .cotizacion_pdf import regenerar_pdf_cotizacion
+    from .models import enviar_whatsapp_jid
+
+    for cot in queryset:
+        if cot.costo_unitario is None or cot.iva is None or cot.total is None:
+            modeladmin.message_user(request, f"Cotizacion {cot.id}: faltan costo, IVA o total.", _messages.ERROR)
+            continue
+        if not cot.documento_generado_id:
+            modeladmin.message_user(request, f"Cotizacion {cot.id}: aun no tiene PDF; usa 'Aprobar y enviar al cliente'.", _messages.WARNING)
+            continue
+        try:
+            regenerar_pdf_cotizacion(cot)
+        except Exception as exc:
+            modeladmin.message_user(request, f"Cotizacion {cot.id}: error al regenerar el PDF: {exc}", _messages.ERROR)
+            continue
+
+        msg = f"Cotizacion {cot.id}: PDF regenerado (total ${cot.total:,.2f})."
+        if avisar:
+            naviera = cot.naviera
+            if naviera.telefono_contacto:
+                num = naviera.telefono_contacto.replace(' ', '').replace('-', '').replace('+', '')
+                if not num.startswith('521'):
+                    num = '521' + (num[2:] if num.startswith('52') else num)
+                try:
+                    ok = enviar_whatsapp_jid(f"{num}@s.whatsapp.net", (
+                        f"📄 *COTIZACIÓN ACTUALIZADA*\n\n"
+                        f"Estimado(a) {naviera.contacto_principal or 'Cliente'},\n\n"
+                        f"La cotización para *{cot.buque.nombre_buque}* fue actualizada.\n"
+                        f"💰 *Total:* ${cot.total:,.2f} MXN\n\n"
+                        f"🔗 https://portal.maritimesecuritymx.com/portal/"
+                    ))
+                except Exception:
+                    ok = False
+                msg += " Cliente avisado por WhatsApp." if ok else " No se pudo avisar al cliente por WhatsApp."
+            else:
+                msg += " La naviera no tiene telefono de contacto: no se aviso."
+        modeladmin.message_user(request, msg, _messages.SUCCESS)
+
+
+def regenerar_pdf_desde_campos(modeladmin, request, queryset):
+    _regenerar_pdf_cotizaciones(modeladmin, request, queryset, avisar=False)
+regenerar_pdf_desde_campos.short_description = "Regenerar PDF desde los campos (sin avisar al cliente)"
+
+
+def regenerar_pdf_y_avisar(modeladmin, request, queryset):
+    _regenerar_pdf_cotizaciones(modeladmin, request, queryset, avisar=True)
+regenerar_pdf_y_avisar.short_description = "Regenerar PDF desde los campos y avisar al cliente por WhatsApp"
+
+
+from django.contrib import admin as _admin
+from .models import CotizacionPendiente as _CotPend
+_ma = _admin.site._registry.get(_CotPend)
+if _ma is not None:
+    _ma.actions = list(_ma.actions or []) + [regenerar_pdf_desde_campos, regenerar_pdf_y_avisar]

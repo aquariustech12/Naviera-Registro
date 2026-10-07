@@ -170,27 +170,23 @@ def alertar_nueva_naviera_mia(sender, instance, created, **kwargs):
 
 
 def _calcular_costo(instance):
+    """Respaldo: toma el costo del tarifario del código. Si no hay tarifa, deja los costos vacíos
+    para capturarlos a mano en el admin (ya no inventa un precio)."""
     tipo  = instance.tipo_servicio.lower() if instance.tipo_servicio else 'verificacion'
     rango = instance.rango_buque.lower()   if instance.rango_buque   else 'pequeno'
     try:
-        base = TARIFARIO_GMP[tipo][rango]['2026']
-        instance.costo_unitario = Decimal(str(base))
+        base = Decimal(str(TARIFARIO_GMP[tipo][rango]['2026']))
     except KeyError:
-        instance.costo_unitario = Decimal('99998.35')
-    instance.iva   = instance.costo_unitario * Decimal('0.16')
-    instance.total = instance.costo_unitario + instance.iva
+        return
+    instance.costo_unitario = base
+    instance.iva   = base * Decimal('0.16')
+    instance.total = base + instance.iva
 
 
 @receiver(pre_save, sender=CotizacionPendiente)
 def calcular_costos_en_borrador(sender, instance, **kwargs):
-    if not instance.pk:
-        _calcular_costo(instance)
-        return
-    try:
-        old = CotizacionPendiente.objects.get(pk=instance.pk)
-        if old.tipo_servicio != instance.tipo_servicio or old.rango_buque != instance.rango_buque:
-            _calcular_costo(instance)
-    except CotizacionPendiente.DoesNotExist:
+    # Solo rellena al crear y solo si vienen vacíos. Nunca pisa costos existentes ni ediciones manuales.
+    if not instance.pk and instance.costo_unitario is None:
         _calcular_costo(instance)
 
 
@@ -200,57 +196,19 @@ def procesar_aprobacion_y_activar_portal(sender, instance, created, **kwargs):
         return
 
     def hilo_emision_pdf(cot_id):
-        from weasyprint import HTML
-        from .templatetags.numero_letras import numero_a_letras
+        from .cotizacion_pdf import generar_pdf_cotizacion
 
         cot     = CotizacionPendiente.objects.get(id=cot_id)
         buque   = cot.buque
         naviera = cot.naviera
-        tipo_s  = cot.tipo_servicio.lower()
-        rango_b = cot.rango_buque.lower()
-
-        textos            = TEXTOS_PROPUESTA_COMPLETA.get(tipo_s, TEXTOS_PROPUESTA_COMPLETA['verificacion'])
-        descripcion_rango = textos['descripcion_rango'].get(rango_b, '')
-
-        context = {
-            'cotizacion':       cot,
-            'buque':            buque,
-            'naviera':          naviera,
-            'titulo_servicio':  textos['titulo_servicio'],
-            'descripcion_rango': descripcion_rango,
-            'actividades':      textos['actividades'],
-            'condiciones_pago': textos['condiciones_pago'],
-            'clausula_primera': textos['clausula_primera'].format(
-                nombre_buque=buque.nombre_buque,
-                descripcion_rango=descripcion_rango,
-            ),
-            'subtotal':      cot.costo_unitario,
-            'iva':           cot.iva,
-            'total':         cot.total,
-            'total_letras':  numero_a_letras(cot.total),
-            'fecha':         timezone.now().strftime('%d/%m/%Y'),
-            'vigencia':      (timezone.now() + timezone.timedelta(days=30)).strftime('%d/%m/%Y'),
-        }
-
-        pdf_bytes = HTML(string=render_to_string('cotizacion_propuesta.html', context)).write_pdf()
-
-        portada_path = os.path.join(settings.MEDIA_ROOT, 'plantillas', 'portada_cotizacion.pdf')
-        if os.path.exists(portada_path):
-            with open(portada_path, 'rb') as f:
-                portada_bytes = f.read()
-            merger = PdfMerger()
-            merger.append(io.BytesIO(portada_bytes))
-            merger.append(io.BytesIO(pdf_bytes))
-            buf = io.BytesIO()
-            merger.write(buf)
-            pdf_final = buf.getvalue()
-        else:
-            pdf_final = pdf_bytes
+        pdf_final = generar_pdf_cotizacion(cot)
 
         entregable         = DocumentoEntregable()
         entregable.naviera = naviera
         entregable.buque   = buque
         entregable.tipo    = 'COTIZACION'
+        ultimo = DocumentoEntregable.objects.filter(naviera=naviera, buque=buque, tipo='COTIZACION').order_by('-secuencia').first()
+        entregable.secuencia = (ultimo.secuencia + 1) if ultimo else 1
         entregable.save()
 
         campo_archivo = next(
@@ -264,7 +222,7 @@ def procesar_aprobacion_y_activar_portal(sender, instance, created, **kwargs):
                 save=True
             )
 
-        CotizacionPendiente.objects.filter(id=cot.id).update(documento_generado=entregable)
+        CotizacionPendiente.objects.filter(id=cot.id).update(documento_generado=entregable, fecha_aprobacion=cot.fecha_aprobacion or timezone.now())
 
         try:
             enviar_whatsapp_jid(JULIAN_JID, (
