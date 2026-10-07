@@ -32,13 +32,19 @@ import hashlib
 JULIAN_JID = "5216444475422@s.whatsapp.net"
 FINANZAS_JID = "5215563183674@s.whatsapp.net"
 
+def _password_cambiado(user):
+    """El cliente ya cambio su contraseña temporal: pertenece al grupo PasswordCambiado.
+    (Antes se usaba is_staff como bandera, lo que daba acceso al admin a los clientes.)"""
+    return user.groups.filter(name='PasswordCambiado').exists()
+
+
 @login_required
 @csrf_protect
 def cambiar_password_obligatorio(request):
     print(f"DEBUG: Entrando a cambiar_password_obligatorio")
     print(f"DEBUG: Usuario: {request.user.username} | is_staff: {request.user.is_staff}")
 
-    if request.user.is_staff:
+    if request.user.is_staff or _password_cambiado(request.user):
         print("DEBUG: El usuario YA es staff. Redirigiendo al portal_cliente directamente.")
         return redirect('portal_cliente')
 
@@ -46,8 +52,9 @@ def cambiar_password_obligatorio(request):
         form = PasswordChangeForm(request.user, request.POST)
         if form.is_valid():
             user = form.save(commit=False) 
-            user.is_staff = True 
-            user.save() 
+            user.save()
+            from django.contrib.auth.models import Group
+            user.groups.add(Group.objects.get_or_create(name='PasswordCambiado')[0])
             update_session_auth_hash(request, user)
             login(request, user, backend='django.contrib.auth.backends.ModelBackend')
             messages.success(request, 'Contraseña establecida correctamente.')
@@ -60,7 +67,7 @@ def cambiar_password_obligatorio(request):
 @login_required
 def portal_cliente(request):
     print(f"DEBUG: Entrando a vista portal_cliente")
-    if not request.user.is_staff:
+    if not (request.user.is_staff or _password_cambiado(request.user)):
         print("DEBUG: Usuario NO es staff. Redirigiendo a cambio de password.")
         return redirect('cambiar_password_obligatorio')
 
@@ -467,6 +474,22 @@ def subir_documento_finanzas(request):
             # --- VERIFICAR ALTA COMPLETA ---
             naviera = request.user.naviera
             admin_count = RequisitoBuque.objects.filter(naviera=naviera, buque__isnull=True, categoria='ADMINISTRATIVO').count()
+
+            # 🔔 AVISO POR CADA DOCUMENTO ADMINISTRATIVO (Julian y Finanzas)
+            def _aviso_doc_admin(msg):
+                for jid in (JULIAN_JID, FINANZAS_JID):
+                    try:
+                        enviar_whatsapp_jid(jid, msg)
+                    except Exception as wa_err:
+                        print(f"❌ Error aviso doc administrativo a {jid}: {wa_err}")
+
+            threading.Thread(target=_aviso_doc_admin, args=((
+                f"📥 *MIA - DOCUMENTO ADMINISTRATIVO RECIBIDO*\n\n"
+                f"🏢 *Naviera:* {naviera.nombre_empresa}\n"
+                f"📄 *Documento:* {tipo}\n"
+                f"📎 *Archivo:* {archivo.name}\n"
+                f"📋 *Avance:* {admin_count}/6"
+            ),), daemon=True).start()
 
             if admin_count >= 6 and not naviera.alta_completa:
                 naviera.alta_completa = True
