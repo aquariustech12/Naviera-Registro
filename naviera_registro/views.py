@@ -96,7 +96,7 @@ def login_view(request):
         u = request.POST.get('username')
         p = request.POST.get('password')
         
-        print(f"DEBUG: Intentando login con Usuario: '{u}' y Password: '{p}'")
+        print(f"DEBUG: Intentando login con Usuario: '{u}'")
         
         user = authenticate(request, username=u, password=p)
         
